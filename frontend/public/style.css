@@ -1,0 +1,43 @@
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 40rem;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  line-height: 1.5;
+}
+
+nav a {
+  margin-right: 1rem;
+}
+
+.beta-badge {
+  display: inline-block;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+  border-radius: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.ask-form {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: white;
+  border-top: 1px solid #ddd;
+}
+
+.ask-form input[type="text"] {
+  flex: 1;
+  padding: 0.5rem;
+}
+
+#upload-result {
+  margin-top: 1rem;
+}

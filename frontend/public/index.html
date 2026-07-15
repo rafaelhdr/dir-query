@@ -4,9 +4,37 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Understand Your Stuffs</title>
+    <link rel="stylesheet" href="/style.css" />
     <script src="/htmx.min.js"></script>
   </head>
   <body>
-    <p>Hello world</p>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/ask">Ask</a>
+      <a href="/feed/upload">Upload</a>
+    </nav>
+
+    <h1>Understand Your Stuffs <span class="beta-badge">Beta</span></h1>
+
+    <p>
+      This project helps you ask questions about your own documents. Upload
+      PDFs and, in a future version, ask questions and get answers grounded
+      in what you uploaded.
+    </p>
+
+    <h2>What is RAG?</h2>
+    <p>
+      RAG stands for <strong>Retrieval-Augmented Generation</strong>. It's a
+      way of answering questions by first retrieving the most relevant
+      pieces of your own documents, then giving those pieces to a language
+      model so it can generate an answer grounded in your content, instead
+      of relying only on what the model already knows.
+    </p>
+
+    <p>
+      <strong>This is a beta version.</strong> Right now you can upload PDF
+      documents, but they are not yet processed, indexed, or searchable —
+      the "Ask" page does not answer questions yet.
+    </p>
   </body>
 </html>

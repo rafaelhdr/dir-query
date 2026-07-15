@@ -8,6 +8,10 @@ __pycache__/
 # Env
 .env
 
+# Uploaded files (local dev storage)
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+
 # Editors
 .vscode/
 .idea/
