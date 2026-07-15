@@ -1,0 +1,87 @@
+# AGENTS.md
+
+Instructions for AI coding agents (and humans) working in this repository.
+
+## Repository layout
+
+This is a monorepo with a clear separation between backend and frontend:
+
+```
+.
+├── backend/     # Python FastAPI API
+├── frontend/    # Static htmx frontend, served by Nginx
+├── openspec/    # Spec-driven change proposals (see below)
+└── docker-compose.yml
+```
+
+- **`backend/`**: FastAPI application. Source lives in `backend/app/`, tests in
+  `backend/tests/`. Dependencies are managed with [`uv`](https://docs.astral.sh/uv/)
+  via `backend/pyproject.toml` and `backend/uv.lock`.
+- **`frontend/`**: Plain HTML + [htmx](https://htmx.org) (vendored, not CDN-loaded),
+  served as static files by Nginx. No build step, no framework.
+
+The backend and frontend are independently deployable services connected only
+by HTTP. Do not introduce cross-imports or shared code between them.
+
+## Running locally
+
+```bash
+docker compose up --build
+```
+
+- Backend: http://localhost:8000 (health check at `/health`)
+- Backend interactive API docs: http://localhost:8000/docs (Swagger UI) and
+  http://localhost:8000/redoc
+- Frontend: http://localhost:8080
+
+Copy `.env.example` to `.env` to override the exposed ports.
+
+## Backend development
+
+```bash
+cd backend
+uv sync              # install dependencies into .venv
+uv run pytest -v     # run tests
+uv run uvicorn app.main:app --reload   # run locally without Docker
+```
+
+- Add new endpoints as an `APIRouter` in `backend/app/api/`, then register it
+  in `backend/app/main.py`'s `create_app()`.
+- Add a corresponding test module in `backend/tests/`.
+- Keep `uv.lock` committed and in sync with `pyproject.toml` (`uv sync`
+  regenerates it as needed).
+
+## Frontend development
+
+The frontend is intentionally framework-free: static HTML files under
+`frontend/public/`, using htmx for interactivity. When adding pages or
+partials, keep them as plain HTML/htmx — do not introduce a JS build
+toolchain without discussing it first.
+
+## Spec-driven changes with OpenSpec
+
+This project uses [OpenSpec](openspec/) to plan and document non-trivial
+changes before implementation. Before starting new feature work:
+
+1. Check `openspec/specs/` for existing specs relevant to the area you're
+   touching, and `openspec/changes/` for in-flight proposals.
+2. For any change beyond a trivial fix, create a proposal first (see the
+   `openspec-propose` / `opsx:propose` skill) rather than jumping straight to
+   code.
+3. Follow the existing OpenSpec skills (`opsx:apply`, `opsx:archive`,
+   `opsx:sync`, `opsx:update`) to implement, sync, and archive changes.
+
+This foundational setup (backend/frontend scaffolding, Docker Compose, CI-
+ready tests) was created directly, without an OpenSpec change, since it
+predates any specs. Everything from here on should go through the OpenSpec
+workflow.
+
+## Conventions
+
+- Python: type-annotated, formatted per standard FastAPI idioms. Prefer small,
+  focused `APIRouter`s over one large router file.
+- Tests: one test module per API router/feature area, using the `TestClient`
+  fixture in `backend/tests/conftest.py`.
+- No database, auth, or background workers are set up yet — introduce them
+  only when a concrete task requires them, and document the decision via
+  OpenSpec.
