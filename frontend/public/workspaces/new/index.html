@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!--#set var="page_title" value="New Workspace — Understand Your Stuffs" -->
+    <!--#include virtual="/partials/head.html" -->
+  </head>
+  <body>
+    <!--#include virtual="/partials/nav.html" -->
+
+    <!--#set var="page_heading" value="New Workspace" -->
+    <!--#include virtual="/partials/heading.html" -->
+
+    <div id="form-error"></div>
+
+    <form id="new-workspace-form" hx-post="/api/workspaces" hx-swap="none">
+      <p>
+        <label>
+          Name
+          <input type="text" name="name" required />
+        </label>
+      </p>
+      <p>
+        <label>
+          Owner email
+          <input type="email" name="owner_email" required />
+        </label>
+      </p>
+      <p>
+        <label>
+          Password
+          <input type="password" name="password" required />
+        </label>
+      </p>
+      <button type="submit">Create workspace</button>
+    </form>
+
+    <script>
+      document
+        .getElementById("new-workspace-form")
+        .addEventListener("htmx:afterRequest", function (evt) {
+          const errorEl = document.getElementById("form-error");
+          errorEl.textContent = "";
+
+          let data;
+          try {
+            data = JSON.parse(evt.detail.xhr.response);
+          } catch (e) {
+            errorEl.textContent = evt.detail.xhr.response;
+            return;
+          }
+
+          if (evt.detail.successful) {
+            window.location = "/w/" + data.slug + "/ask";
+          } else {
+            errorEl.textContent = data.detail || evt.detail.xhr.response;
+          }
+        });
+    </script>
+  </body>
+</html>

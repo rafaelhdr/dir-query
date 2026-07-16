@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!--#set var="page_title" value="Upload — Understand Your Stuffs" -->
+    <!--#include virtual="/partials/head.html" -->
+  </head>
+  <body>
+    <!--#include virtual="/partials/nav.html" -->
+
+    <!--#set var="page_heading" value="Upload" -->
+    <!--#include virtual="/partials/heading.html" -->
+
+    <p>
+      Upload a PDF document to this workspace.
+      <a id="ask-link" href="#">Ask a question</a> once it's indexed.
+    </p>
+
+    <form id="upload-form">
+      <input type="file" name="file" accept="application/pdf" required />
+      <button type="submit">Upload</button>
+    </form>
+
+    <div id="upload-result"></div>
+
+    <script>
+      const slug = window.location.pathname.split("/")[2];
+      document.getElementById("ask-link").href = "/w/" + slug + "/ask";
+
+      document.getElementById("upload-form").addEventListener("submit", async function (evt) {
+        evt.preventDefault();
+        const resultEl = document.getElementById("upload-result");
+        resultEl.textContent = "";
+
+        const formData = new FormData(evt.target);
+        const response = await fetch("/api/w/" + slug + "/uploads", {
+          method: "POST",
+          body: formData,
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          resultEl.textContent = await response.text();
+          return;
+        }
+
+        if (response.ok) {
+          resultEl.textContent = "Uploaded " + data.original_filename + ".";
+        } else {
+          resultEl.textContent = data.detail || response.statusText;
+        }
+      });
+    </script>
+  </body>
+</html>

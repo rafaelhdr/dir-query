@@ -1,15 +1,28 @@
 ## Purpose
 
-The home page (`/`) is the entry point of the application. It explains what the project is, briefly explains what RAG (Retrieval-Augmented Generation) is, discloses beta status, and links to the other pages.
+The home page (served at both `/` and `/home`) is the entry point of the
+application. It explains what the project is, briefly explains what RAG
+(Retrieval-Augmented Generation) is, explains workspaces as the way the
+project separates groups of documents, discloses beta status, and links
+to the other pages.
 
 ## Requirements
 
 ### Requirement: Home page explains the project and RAG
-The system SHALL serve a home page at `/` that explains what the project is and briefly explains what RAG (Retrieval-Augmented Generation) is, in plain language.
+The system SHALL serve the home page at both `/` and `/home` (the same
+content at both paths), explaining what the project is, briefly
+explaining what RAG (Retrieval-Augmented Generation) is, in plain
+language, and explaining that workspaces are how the project separates
+groups of documents (e.g. per person or company).
 
-#### Scenario: Visiting the home page
+#### Scenario: Visiting the home page at /
 - **WHEN** a user navigates to `/`
-- **THEN** the page loads successfully and displays a description of the project and a brief explanation of RAG
+- **THEN** the page loads successfully and displays a description of the
+  project, a brief explanation of RAG, and an explanation of workspaces
+
+#### Scenario: Visiting the home page at /home
+- **WHEN** a user navigates to `/home`
+- **THEN** the same home page content is displayed as at `/`
 
 ### Requirement: Home page discloses beta status
 The system SHALL clearly indicate on the home page that the application is a beta version, and that uploaded documents are not yet processed or searchable.
@@ -19,12 +32,10 @@ The system SHALL clearly indicate on the home page that the application is a bet
 - **THEN** a visible notice states the application is in beta and that uploads are not yet acted upon
 
 ### Requirement: Home page links to the other pages
-The system SHALL provide navigation links from the home page to the ask page (`/ask`) and the upload page (`/feed/upload`).
+The system SHALL provide a navigation link from the home page to the
+workspaces page (`/workspaces`).
 
-#### Scenario: Navigating from home to ask
-- **WHEN** a user clicks the "Ask" navigation link on the home page
-- **THEN** the browser navigates to `/ask`
-
-#### Scenario: Navigating from home to upload
-- **WHEN** a user clicks the "Upload" navigation link on the home page
-- **THEN** the browser navigates to `/feed/upload`
+#### Scenario: Navigating from home to workspaces
+- **WHEN** a user clicks the "Workspaces" navigation link on the home page
+- **THEN** the browser navigates to `/workspaces`
+</content>

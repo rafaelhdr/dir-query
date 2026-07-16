@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(openspec/**)",
+      "Bash(docker compose *)"
+    ]
+  }
+}

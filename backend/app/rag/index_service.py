@@ -1,21 +1,25 @@
 import logging
-import threading
+import re
 from pathlib import Path
 
-from llama_index.core import StorageContext, VectorStoreIndex, load_index_from_storage
-from llama_index.core.base.base_query_engine import BaseQueryEngine
+from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.minimax import MiniMax
 from llama_index.readers.file import PDFReader
+from sqlalchemy import select
 
-from app.config import HF_HOME, INDEX_DIR, MINIMAX_API_KEY, MINIMAX_LLM_MODEL, UPLOAD_DIR
+from app.config import HF_HOME, MINIMAX_API_KEY, MINIMAX_LLM_MODEL, UPLOAD_DIR
+from app.db.models import Chunk, File
+from app.db.session import async_session_factory
 
 logger = logging.getLogger(__name__)
 
-_lock = threading.Lock()
-_index: VectorStoreIndex | None = None
+TOP_K = 5
+
 _pdf_reader = PDFReader()
+_splitter = SentenceSplitter()
 _embed_model: HuggingFaceEmbedding | None = None
+_THINK_TAGS = re.compile(r"<think>.*?</think>\s*", flags=re.DOTALL)
 
 
 def _get_embed_model() -> HuggingFaceEmbedding:
@@ -28,86 +32,97 @@ def _get_embed_model() -> HuggingFaceEmbedding:
     return _embed_model
 
 
-def _uploaded_pdf_names() -> list[str]:
-    if not UPLOAD_DIR.exists():
-        return []
-    return sorted(
-        p.name for p in UPLOAD_DIR.iterdir() if p.is_file() and p.suffix.lower() == ".pdf"
-    )
+def _strip_reasoning(text: str) -> str:
+    return _THINK_TAGS.sub("", text).strip()
 
 
-def _load_or_create_index() -> VectorStoreIndex:
-    embed_model = _get_embed_model()
-    if (INDEX_DIR / "docstore.json").is_file():
-        storage_context = StorageContext.from_defaults(persist_dir=str(INDEX_DIR))
-        return load_index_from_storage(storage_context, embed_model=embed_model)
-    return VectorStoreIndex.from_documents([], embed_model=embed_model)
+async def index_uploaded_file(file_id: int, path: Path) -> None:
+    try:
+        documents = _pdf_reader.load_data(file=path)
+        nodes = _splitter.get_nodes_from_documents(documents)
+        embed_model = _get_embed_model()
+
+        async with async_session_factory() as session:
+            for chunk_index, node in enumerate(nodes):
+                text = node.get_content()
+                embedding = embed_model.get_text_embedding(text)
+                session.add(
+                    Chunk(
+                        file_id=file_id,
+                        chunk_index=chunk_index,
+                        text=text,
+                        embedding=embedding,
+                    )
+                )
+
+            result = await session.execute(select(File).where(File.id == file_id))
+            file = result.scalar_one()
+            file.status = "indexed"
+            await session.commit()
+
+        logger.info("Indexed uploaded file: %s (%d chunks)", path.name, len(nodes))
+    except Exception:
+        logger.exception("Failed to index uploaded file: %s", path.name)
+        async with async_session_factory() as session:
+            result = await session.execute(select(File).where(File.id == file_id))
+            file = result.scalar_one_or_none()
+            if file is not None:
+                file.status = "failed"
+                await session.commit()
 
 
-def _index_file(path: Path, index: VectorStoreIndex) -> None:
-    documents = _pdf_reader.load_data(file=path)
-    for document in documents:
-        document.doc_id = path.name
-        index.insert(document)
+async def sync_pending_files() -> None:
+    async with async_session_factory() as session:
+        result = await session.execute(select(File).where(File.status == "pending"))
+        pending_files = result.scalars().all()
+        pending = [(f.id, f.workspace_id, f.filename) for f in pending_files]
 
+    logger.info("Startup sync: %d pending file(s) found", len(pending))
+    if not pending:
+        logger.info("Startup sync: nothing new to index")
+        return
 
-def _persist(index: VectorStoreIndex) -> None:
-    INDEX_DIR.mkdir(parents=True, exist_ok=True)
-    index.storage_context.persist(persist_dir=str(INDEX_DIR))
-
-
-def sync_index() -> None:
-    global _index
-    with _lock:
+    for file_id, workspace_id, filename in pending:
+        path = UPLOAD_DIR / str(workspace_id) / filename
         try:
-            index = _load_or_create_index()
-            upload_names = _uploaded_pdf_names()
-            already_indexed = set(index.ref_doc_info.keys())
-            to_index = [name for name in upload_names if name not in already_indexed]
-
-            logger.info(
-                "Startup sync: %d upload(s) found, %d already indexed, %d to index",
-                len(upload_names),
-                len(upload_names) - len(to_index),
-                len(to_index),
-            )
-
-            if not to_index:
-                logger.info("Startup sync: nothing new to index")
-                _index = index
-                return
-
-            for name in to_index:
-                try:
-                    _index_file(UPLOAD_DIR / name, index)
-                    logger.info("Startup sync: indexed %s", name)
-                except Exception:
-                    logger.exception("Startup sync: failed to index %s", name)
-
-            _persist(index)
-            _index = index
-            logger.info("Startup sync: complete")
+            await index_uploaded_file(file_id, path)
+            logger.info("Startup sync: indexed %s", filename)
         except Exception:
-            logger.exception("Startup sync: failed")
+            logger.exception("Startup sync: failed to index %s", filename)
+
+    logger.info("Startup sync: complete")
 
 
-def index_uploaded_file(path: Path) -> None:
-    global _index
-    with _lock:
-        try:
-            index = _index if _index is not None else _load_or_create_index()
-            _index_file(path, index)
-            _persist(index)
-            _index = index
-            logger.info("Indexed uploaded file: %s", path.name)
-        except Exception:
-            logger.exception("Failed to index uploaded file: %s", path.name)
-
-
-def get_query_engine() -> BaseQueryEngine | None:
-    if _index is None or not _index.ref_doc_info:
-        return None
+async def answer_question(workspace_id: int, question: str) -> dict[str, object]:
     if not MINIMAX_API_KEY:
         raise RuntimeError("MINIMAX_API_KEY is not configured")
+
+    embed_model = _get_embed_model()
+    query_embedding = embed_model.get_query_embedding(question)
+
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(Chunk.text, File.original_name)
+            .join(File, Chunk.file_id == File.id)
+            .where(File.workspace_id == workspace_id)
+            .order_by(Chunk.embedding.cosine_distance(query_embedding))
+            .limit(TOP_K)
+        )
+        rows = result.all()
+
+    if not rows:
+        return {"answer": "No documents have been indexed yet.", "sources": []}
+
+    context = "\n\n".join(text for text, _ in rows)
+    sources = sorted({original_name for _, original_name in rows})
+
+    prompt = (
+        "Answer the question using only the context below. "
+        "If the answer isn't in the context, say you don't know.\n\n"
+        f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
+    )
+
     llm = MiniMax(model=MINIMAX_LLM_MODEL, api_key=MINIMAX_API_KEY)
-    return _index.as_query_engine(llm=llm)
+    response = await llm.acomplete(prompt)
+
+    return {"answer": _strip_reasoning(str(response)), "sources": sources}

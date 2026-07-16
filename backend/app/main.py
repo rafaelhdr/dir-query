@@ -3,13 +3,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import ask, health, uploads
+from app.api import ask, health, uploads, workspaces
 from app.rag import index_service
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.create_task(asyncio.to_thread(index_service.sync_index))
+    asyncio.create_task(index_service.sync_pending_files())
     yield
 
 
@@ -22,6 +22,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(uploads.router)
     app.include_router(ask.router)
+    app.include_router(workspaces.router)
     return app
 
 

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!--#set var="page_title" value="Workspaces — Understand Your Stuffs" -->
+    <!--#include virtual="/partials/head.html" -->
+  </head>
+  <body>
+    <!--#include virtual="/partials/nav.html" -->
+
+    <!--#set var="page_heading" value="Workspaces" -->
+    <!--#include virtual="/partials/heading.html" -->
+
+    <p><a href="/workspaces/new">Create a new workspace</a></p>
+
+    <ul id="workspace-list"></ul>
+    <p id="empty-message" hidden>
+      No workspaces yet. <a href="/workspaces/new">Create one</a> to get
+      started.
+    </p>
+
+    <script>
+      fetch("/api/workspaces")
+        .then((res) => res.json())
+        .then((workspaces) => {
+          if (!workspaces.length) {
+            document.getElementById("empty-message").hidden = false;
+            return;
+          }
+
+          const list = document.getElementById("workspace-list");
+          workspaces.forEach((workspace) => {
+            const li = document.createElement("li");
+            const a = document.createElement("a");
+            a.href = "/w/" + workspace.slug + "/ask";
+            a.textContent = workspace.name;
+            li.appendChild(a);
+            list.appendChild(li);
+          });
+        });
+    </script>
+  </body>
+</html>

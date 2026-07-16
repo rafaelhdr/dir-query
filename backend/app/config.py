@@ -4,9 +4,18 @@ from pathlib import Path
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/data/uploads"))
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(20 * 1024 * 1024)))
 
-INDEX_DIR = Path(os.getenv("INDEX_DIR", "/data/index"))
 HF_HOME = Path(os.getenv("HF_HOME", "/data/hf-cache"))
 MINIMAX_LLM_MODEL = os.getenv("MINIMAX_LLM_MODEL", "MiniMax-M2.7")
+
+POSTGRES_USER = os.getenv("POSTGRES_USER", "understand_your_stuffs")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "understand_your_stuffs")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+DATABASE_URL = (
+    f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+    f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+)
 
 
 def _read_secret(name: str) -> str | None:

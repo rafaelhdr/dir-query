@@ -14,8 +14,13 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY app ./app
 RUN uv sync --frozen --no-dev
 
+COPY alembic.ini ./alembic.ini
+COPY migrations ./migrations
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
 ENV PATH="/app/.venv/bin:${PATH}"
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./docker-entrypoint.sh"]
