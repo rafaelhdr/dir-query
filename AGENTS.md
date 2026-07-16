@@ -71,6 +71,29 @@ The frontend is intentionally framework-free: static HTML files under
 partials, keep them as plain HTML/htmx — do not introduce a JS build
 toolchain without discussing it first.
 
+Shared markup (the `<head>` boilerplate, nav, and page heading/beta-badge)
+lives in `frontend/public/partials/` and is assembled at request time by
+Nginx SSI (enabled via `ssi on;` in `frontend/nginx.conf`). New pages should
+follow the existing pattern:
+
+```html
+<head>
+  <!--#set var="page_title" value="My Page — Understand Your Stuffs" -->
+  <!--#include virtual="/partials/head.html" -->
+</head>
+<body>
+  <!--#include virtual="/partials/nav.html" -->
+
+  <!--#set var="page_heading" value="My Page" -->
+  <!--#include virtual="/partials/heading.html" -->
+  ...
+```
+
+`frontend/public/partials/` is marked `internal` in the Nginx config, so
+those files can only be reached via SSI includes, not requested directly by
+a browser. No build step is introduced — Nginx renders the includes on
+every request, so the files on disk are exactly what gets served.
+
 ## Spec-driven changes with OpenSpec
 
 This project uses [OpenSpec](openspec/) to plan and document non-trivial
