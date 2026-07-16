@@ -8,6 +8,7 @@ from app.main import app
 @pytest.fixture
 def client(tmp_path, monkeypatch) -> TestClient:
     monkeypatch.setattr(uploads_module, "UPLOAD_DIR", tmp_path)
+    monkeypatch.setattr(uploads_module.index_service, "index_uploaded_file", lambda path: None)
     return TestClient(app)
 
 

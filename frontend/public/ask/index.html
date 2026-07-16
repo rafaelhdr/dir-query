@@ -16,14 +16,42 @@
 
     <h1>Ask <span class="beta-badge">Beta</span></h1>
 
-    <p>
-      This page will let you ask questions about your uploaded documents.
-      It doesn't do anything yet — asking a question here has no effect.
-    </p>
+    <p>Ask a question about your uploaded documents.</p>
 
-    <form class="ask-form" onsubmit="event.preventDefault();">
-      <input type="text" name="question" placeholder="Ask a question (not wired up yet)" />
+    <div id="answer"></div>
+
+    <form id="ask-form" class="ask-form" hx-post="/api/ask" hx-swap="none">
+      <input type="text" name="question" placeholder="Ask a question" required />
       <button type="submit">Ask</button>
     </form>
+
+    <script>
+      document.getElementById("ask-form").addEventListener("htmx:afterRequest", function (evt) {
+        const answerEl = document.getElementById("answer");
+        answerEl.textContent = "";
+
+        let data;
+        try {
+          data = JSON.parse(evt.detail.xhr.response);
+        } catch (e) {
+          answerEl.textContent = evt.detail.xhr.response;
+          return;
+        }
+
+        if (evt.detail.successful) {
+          const answerP = document.createElement("p");
+          answerP.textContent = data.answer;
+          answerEl.appendChild(answerP);
+
+          if (data.sources && data.sources.length) {
+            const sourcesP = document.createElement("p");
+            sourcesP.textContent = "Sources: " + data.sources.join(", ");
+            answerEl.appendChild(sourcesP);
+          }
+        } else {
+          answerEl.textContent = data.detail || evt.detail.xhr.response;
+        }
+      });
+    </script>
   </body>
 </html>

@@ -12,6 +12,19 @@ __pycache__/
 backend/data/uploads/*
 !backend/data/uploads/.gitkeep
 
+# RAG index (regenerable from uploads)
+backend/data/index/*
+!backend/data/index/.gitkeep
+
+# Embedding model download cache
+backend/data/hf-cache/*
+!backend/data/hf-cache/.gitkeep
+
+# Local secrets
+secrets/*
+!secrets/.gitkeep
+!secrets/*.example
+
 # Editors
 .vscode/
 .idea/

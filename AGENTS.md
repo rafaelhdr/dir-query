@@ -36,6 +36,19 @@ docker compose up --build
 
 Copy `.env.example` to `.env` to override the exposed ports.
 
+### MiniMax API key (needed for `/ask`)
+
+Uploading and indexing documents works with no configuration. Answering
+questions via `/ask` needs a [MiniMax](https://www.minimax.io/) API key:
+
+- **Recommended**: `cp secrets/minimax_api_key.txt.example secrets/minimax_api_key.txt`
+  and put your real key in that file. It's gitignored — never commit it.
+- **Fallback**: set `MINIMAX_API_KEY` in `.env` instead, if a secrets file
+  isn't convenient (e.g. some CI setups).
+
+Without either, uploads and indexing still work; `/ask` returns a clear
+configuration error instead of an answer.
+
 ## Backend development
 
 ```bash
