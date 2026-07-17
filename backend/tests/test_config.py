@@ -1,5 +1,7 @@
 import inspect
 
+import pytest
+
 from app import config
 
 
@@ -45,3 +47,20 @@ def test_default_secret_file_path_matches_bind_mounted_filename() -> None:
     # guarded here so it can't regress silently again.
     source = inspect.getsource(config._read_secret)
     assert "/run/secrets/{name.lower()}.txt" in source
+
+
+def test_embed_provider_defaults_to_cpu() -> None:
+    assert config.EMBED_PROVIDER == "cpu"
+
+
+def test_llm_provider_defaults_to_minimax() -> None:
+    assert config.LLM_PROVIDER == "minimax"
+
+
+def test_validate_choice_accepts_an_allowed_value() -> None:
+    assert config._validate_choice("EMBED_PROVIDER", "gemini", {"cpu", "gemini"}) == "gemini"
+
+
+def test_validate_choice_rejects_an_unrecognized_value() -> None:
+    with pytest.raises(ValueError, match="LLM_PROVIDER"):
+        config._validate_choice("LLM_PROVIDER", "bogus", {"minimax", "gemini"})

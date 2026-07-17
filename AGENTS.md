@@ -36,18 +36,65 @@ docker compose up --build
 
 Copy `.env.example` to `.env` to override the exposed ports.
 
-### MiniMax API key (needed for `/ask`)
+### LLM and embedding providers
 
-Uploading and indexing documents works with no configuration. Answering
-questions via `/ask` needs a [MiniMax](https://www.minimax.io/) API key:
+The embedding provider (used for indexing and retrieval) and the LLM
+provider (used to answer questions) are each chosen independently via
+environment variables:
 
-- **Recommended**: `cp secrets/minimax_api_key.txt.example secrets/minimax_api_key.txt`
-  and put your real key in that file. It's gitignored — never commit it.
-- **Fallback**: set `MINIMAX_API_KEY` in `.env` instead, if a secrets file
-  isn't convenient (e.g. some CI setups).
+- `EMBED_PROVIDER`: `cpu` (default — a local HuggingFace model, no API key
+  needed) or `gemini` (Google's Gemini embeddings API, needs `GOOGLE_API_KEY`).
+- `LLM_PROVIDER`: `minimax` (default) or `gemini` (needs `GOOGLE_API_KEY`).
 
-Without either, uploads and indexing still work; `/ask` returns a clear
-configuration error instead of an answer.
+An unrecognized value for either variable fails backend startup immediately
+with a clear error. Uploading and indexing documents works with no
+configuration at the default settings. Answering questions via `/ask` needs
+a [MiniMax](https://www.minimax.io/) API key at the default `LLM_PROVIDER`.
+
+Credentials are supplied the same way for both providers:
+
+- **MiniMax** — **Recommended**: `cp secrets/minimax_api_key.txt.example
+  secrets/minimax_api_key.txt` and put your real key in that file. It's
+  gitignored — never commit it. **Fallback**: set `MINIMAX_API_KEY` in
+  `.env` instead, if a secrets file isn't convenient (e.g. some CI setups).
+- **Gemini** (needed if `EMBED_PROVIDER=gemini` and/or `LLM_PROVIDER=gemini`)
+  — **Recommended**: `cp secrets/google_api_key.txt.example
+  secrets/google_api_key.txt` and put your real
+  [Google AI Studio](https://aistudio.google.com/) key in that file.
+  **Fallback**: set `GOOGLE_API_KEY` in `.env` instead.
+
+Without a required credential configured, uploads/indexing or `/ask` (as
+applicable) return a clear configuration error instead of crashing the
+backend.
+
+`GEMINI_LLM_MODEL` (default `gemini-3-flash-preview`) and
+`GEMINI_EMBED_MODEL` (default `gemini-embedding-001`) override the specific
+Gemini models used, mirroring `MINIMAX_LLM_MODEL`. Google's currently
+available models for new API keys shift over time (verified live: at the
+time of writing, `gemini-2.5-flash`/`gemini-2.5-flash-lite` 404 for new
+keys and `gemini-2.0-flash` hit a quota error, while the `-preview` model
+above worked) — if the default stops working, override it with whatever
+`client.models.list()` (via the `google-genai` SDK) shows as available and
+working for your key.
+
+#### Switching `EMBED_PROVIDER` on a deployment with existing indexed data
+
+Different embedding providers produce vectors in incompatible vector
+spaces (not just different dimensions) — switching `EMBED_PROVIDER` after
+documents are already indexed requires clearing existing chunks and
+re-indexing under the new provider. Run this once, right after changing
+`EMBED_PROVIDER`:
+
+```bash
+docker compose exec backend uv run python scripts/reset_embeddings.py
+```
+
+This clears the `chunks` table, resizes its embedding column to match the
+newly configured provider's actual output dimension, and marks affected
+files back to `pending` — the next startup sync (or backend restart)
+re-indexes them automatically under the new provider. **This is
+destructive** (all existing chunks are cleared) and has no confirmation
+prompt — only run it deliberately, after changing `EMBED_PROVIDER`.
 
 ## Backend development
 

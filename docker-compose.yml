@@ -22,6 +22,7 @@ services:
     volumes:
       - ./backend/app:/app/app
       - ./backend/migrations:/app/migrations
+      - ./backend/scripts:/app/scripts
       - ./backend/data/uploads:/data/uploads
       - ./backend/data/hf-cache:/data/hf-cache
       - ./secrets:/run/secrets:ro
@@ -31,8 +32,13 @@ services:
     environment:
       UPLOAD_DIR: /data/uploads
       HF_HOME: /data/hf-cache
+      EMBED_PROVIDER: ${EMBED_PROVIDER:-cpu}
+      LLM_PROVIDER: ${LLM_PROVIDER:-minimax}
       MINIMAX_LLM_MODEL: ${MINIMAX_LLM_MODEL:-MiniMax-M2.7}
       MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
+      GEMINI_LLM_MODEL: ${GEMINI_LLM_MODEL:-gemini-3-flash-preview}
+      GEMINI_EMBED_MODEL: ${GEMINI_EMBED_MODEL:-gemini-embedding-001}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       POSTGRES_USER: ${POSTGRES_USER:-understand_your_stuffs}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: ${POSTGRES_DB:-understand_your_stuffs}

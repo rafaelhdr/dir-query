@@ -16,6 +16,7 @@ RUN uv sync --frozen --no-dev
 
 COPY alembic.ini ./alembic.ini
 COPY migrations ./migrations
+COPY scripts ./scripts
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 

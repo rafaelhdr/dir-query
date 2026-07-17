@@ -4,8 +4,6 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import CheckConstraint, ForeignKey, Index, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-EMBEDDING_DIM = 384
-
 FILE_STATUSES = ("pending", "indexed", "failed")
 
 
@@ -60,7 +58,12 @@ class Chunk(Base):
     )
     chunk_index: Mapped[int] = mapped_column(nullable=False)
     text: Mapped[str] = mapped_column(nullable=False)
-    embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIM), nullable=False)
+    # No fixed dimension here: SQLAlchemy's insertmany fast path bakes
+    # Vector(N)'s N into an explicit `::VECTOR(N)` cast in the generated SQL,
+    # which would reject every insert once scripts/reset_embeddings.py
+    # resizes the live column to a different provider's dimension. The
+    # actual dimension is enforced by the live column's own type instead.
+    embedding: Mapped[list[float]] = mapped_column(Vector(), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now(), nullable=False
     )

@@ -2,13 +2,27 @@ import logging
 import re
 from pathlib import Path
 
+from llama_index.core.embeddings import BaseEmbedding
+from llama_index.core.llms import LLM
 from llama_index.core.node_parser import SentenceSplitter
+from llama_index.embeddings.google_genai import GoogleGenAIEmbedding
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.llms.minimax import MiniMax
 from llama_index.readers.file import PDFReader
 from sqlalchemy import select
 
-from app.config import HF_HOME, MINIMAX_API_KEY, MINIMAX_LLM_MODEL, UPLOAD_DIR
+from app.config import (
+    EMBED_PROVIDER,
+    GEMINI_EMBED_MODEL,
+    GEMINI_LLM_MODEL,
+    GOOGLE_API_KEY,
+    HF_HOME,
+    LLM_PROVIDER,
+    MINIMAX_API_KEY,
+    MINIMAX_LLM_MODEL,
+    UPLOAD_DIR,
+)
 from app.db.models import Chunk, File
 from app.db.session import async_session_factory
 
@@ -18,18 +32,36 @@ TOP_K = 5
 
 _pdf_reader = PDFReader()
 _splitter = SentenceSplitter()
-_embed_model: HuggingFaceEmbedding | None = None
+_embed_model: BaseEmbedding | None = None
 _THINK_TAGS = re.compile(r"<think>.*?</think>\s*", flags=re.DOTALL)
 
 
-def _get_embed_model() -> HuggingFaceEmbedding:
+def _get_embed_model() -> BaseEmbedding:
     global _embed_model
     if _embed_model is None:
-        _embed_model = HuggingFaceEmbedding(
-            model_name="BAAI/bge-small-en-v1.5",
-            cache_folder=str(HF_HOME),
-        )
+        if EMBED_PROVIDER == "gemini":
+            if not GOOGLE_API_KEY:
+                raise RuntimeError("GOOGLE_API_KEY is not configured")
+            _embed_model = GoogleGenAIEmbedding(
+                model_name=GEMINI_EMBED_MODEL, api_key=GOOGLE_API_KEY
+            )
+        else:
+            _embed_model = HuggingFaceEmbedding(
+                model_name="BAAI/bge-small-en-v1.5",
+                cache_folder=str(HF_HOME),
+            )
     return _embed_model
+
+
+def _get_llm() -> LLM:
+    if LLM_PROVIDER == "gemini":
+        if not GOOGLE_API_KEY:
+            raise RuntimeError("GOOGLE_API_KEY is not configured")
+        return GoogleGenAI(model=GEMINI_LLM_MODEL, api_key=GOOGLE_API_KEY)
+
+    if not MINIMAX_API_KEY:
+        raise RuntimeError("MINIMAX_API_KEY is not configured")
+    return MiniMax(model=MINIMAX_LLM_MODEL, api_key=MINIMAX_API_KEY)
 
 
 def _strip_reasoning(text: str) -> str:
@@ -94,8 +126,7 @@ async def sync_pending_files() -> None:
 
 
 async def answer_question(workspace_id: int, question: str) -> dict[str, object]:
-    if not MINIMAX_API_KEY:
-        raise RuntimeError("MINIMAX_API_KEY is not configured")
+    llm = _get_llm()
 
     embed_model = _get_embed_model()
     query_embedding = embed_model.get_query_embedding(question)
@@ -122,7 +153,6 @@ async def answer_question(workspace_id: int, question: str) -> dict[str, object]
         f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
     )
 
-    llm = MiniMax(model=MINIMAX_LLM_MODEL, api_key=MINIMAX_API_KEY)
     response = await llm.acomplete(prompt)
 
     return {"answer": _strip_reasoning(str(response)), "sources": sources}
