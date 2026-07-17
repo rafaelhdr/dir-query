@@ -1,38 +1,4 @@
-## Purpose
-
-The ask page (`/w/<slug>/ask`) is where a user asks questions about a
-workspace's uploaded documents. It submits the question to that
-workspace's backend question-answering endpoint and displays the
-returned answer.
-
-## Requirements
-
-### Requirement: Ask page provides a question input
-The system SHALL serve a page at `/w/<slug>/ask` for an existing workspace
-identified by `<slug>`, with a text input, positioned at the bottom of the
-page, where a user can type a question for that workspace.
-
-#### Scenario: Visiting the ask page for an existing workspace
-- **WHEN** a user navigates to `/w/<slug>/ask` for a workspace that exists
-- **THEN** the page loads successfully and displays a question input at
-  the bottom of the page
-
-### Requirement: Ask page submits questions to the backend and displays the answer
-The system SHALL submit the question entered on a workspace's ask page to
-that workspace's backend question-answering endpoint and SHALL display
-the returned answer on the page.
-
-#### Scenario: Submitting a question shows an answer
-- **WHEN** a user types a question into the input on a workspace's ask
-  page and submits it
-- **THEN** the question is sent to the backend for that workspace and the
-  returned answer is displayed on the page
-
-#### Scenario: Backend error is shown to the user
-- **WHEN** the backend returns an error in response to a submitted
-  question
-- **THEN** the ask page displays a clear error message instead of an
-  answer
+## MODIFIED Requirements
 
 ### Requirement: Ask page links to the other pages
 The system SHALL provide navigation from a workspace's ask page to the
@@ -54,6 +20,8 @@ selected tab.
 - **WHEN** a user is on a workspace's ask page
 - **THEN** the "Ask" tab in the tab bar is visually marked as selected
   and the "Upload" tab is not
+
+## ADDED Requirements
 
 ### Requirement: Ask page heading shows the workspace's name
 The system SHALL display the workspace's name (not a generic label) as
@@ -80,5 +48,3 @@ workspace.
 - **WHEN** a user navigates to `/w/<slug>` for a workspace that exists
 - **THEN** the ask page for that workspace loads, showing that
   workspace's name in the heading and the "Ask" tab selected
-</content>
-</invoke>

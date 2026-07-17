@@ -3,6 +3,7 @@
     "allow": [
       "Edit(openspec/**)",
       "Bash(docker compose *)"
-    ]
+    ],
+    "filesystem.allowWrite": ["openspec/**"]
   }
 }

@@ -7,13 +7,14 @@
   <body>
     <!--#include virtual="/partials/nav.html" -->
 
-    <!--#set var="page_heading" value="Ask" -->
-    <!--#include virtual="/partials/heading.html" -->
+    <h1><span id="workspace-name"></span> <span class="beta-badge">Beta</span></h1>
 
-    <p>
-      Ask a question about this workspace's uploaded documents.
-      <a id="upload-link" href="#">Upload more documents</a>.
-    </p>
+    <nav class="workspace-tabs">
+      <a id="tab-ask" href="#" class="active" aria-current="page">Ask</a>
+      <a id="tab-upload" href="#">Upload</a>
+    </nav>
+
+    <p>Ask a question about this workspace's uploaded documents.</p>
 
     <div id="answer"></div>
 
@@ -24,7 +25,23 @@
 
     <script>
       const slug = window.location.pathname.split("/")[2];
-      document.getElementById("upload-link").href = "/w/" + slug + "/feed/upload";
+      const workspaceNameEl = document.getElementById("workspace-name");
+      workspaceNameEl.textContent = slug;
+      document.getElementById("tab-ask").href = "/w/" + slug + "/ask";
+      document.getElementById("tab-upload").href = "/w/" + slug + "/feed/upload";
+
+      fetch("/api/workspaces/" + slug)
+        .then(async function (response) {
+          if (!response.ok) {
+            workspaceNameEl.textContent = "Workspace not found";
+            return;
+          }
+          const workspace = await response.json();
+          workspaceNameEl.textContent = workspace.name;
+        })
+        .catch(function () {
+          workspaceNameEl.textContent = "Workspace not found";
+        });
 
       document.getElementById("ask-form").addEventListener("submit", async function (evt) {
         evt.preventDefault();
