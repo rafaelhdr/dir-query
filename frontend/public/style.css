@@ -6,8 +6,17 @@ body {
   line-height: 1.5;
 }
 
+nav {
+  display: flex;
+  align-items: center;
+}
+
 nav a {
   margin-right: 1rem;
+}
+
+nav .beta-badge {
+  margin-left: auto;
 }
 
 .beta-badge {
