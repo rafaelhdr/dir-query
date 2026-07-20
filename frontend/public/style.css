@@ -52,20 +52,92 @@ nav .beta-badge {
 }
 
 .ask-form {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
   display: flex;
   gap: 0.5rem;
-  padding: 1rem;
-  background: white;
-  border-top: 1px solid #ddd;
+  padding: 1rem 0;
 }
 
 .ask-form input[type="text"] {
   flex: 1;
   padding: 0.5rem;
+}
+
+.exchange {
+  margin-bottom: 1.5rem;
+}
+
+.exchange-question {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.exchange-loading {
+  color: #666;
+  font-style: italic;
+}
+
+.exchange-answer p,
+.exchange-answer ul,
+.exchange-answer ol,
+.exchange-answer pre,
+.exchange-answer blockquote {
+  margin: 0 0 0.5rem;
+}
+
+.exchange-answer ul,
+.exchange-answer ol {
+  padding-left: 1.25rem;
+}
+
+.exchange-answer p:last-child,
+.exchange-answer ul:last-child,
+.exchange-answer ol:last-child,
+.exchange-answer pre:last-child,
+.exchange-answer blockquote:last-child {
+  margin-bottom: 0;
+}
+
+.exchange-answer code {
+  font-family: ui-monospace, monospace;
+  background: #f3f4f6;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.2rem;
+  font-size: 0.9em;
+}
+
+.exchange-answer pre {
+  background: #f3f4f6;
+  padding: 0.5rem;
+  border-radius: 0.3rem;
+  overflow-x: auto;
+}
+
+.exchange-answer pre code {
+  background: none;
+  padding: 0;
+}
+
+.exchange-answer blockquote {
+  border-left: 3px solid #ddd;
+  padding-left: 0.75rem;
+  color: #555;
+}
+
+.exchange-sources {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+.exchange-error {
+  color: #b91c1c;
+}
+
+.ask-page-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
 }
 
 #upload-result {

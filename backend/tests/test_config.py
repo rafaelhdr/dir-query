@@ -64,3 +64,7 @@ def test_validate_choice_accepts_an_allowed_value() -> None:
 def test_validate_choice_rejects_an_unrecognized_value() -> None:
     with pytest.raises(ValueError, match="LLM_PROVIDER"):
         config._validate_choice("LLM_PROVIDER", "bogus", {"minimax", "gemini"})
+
+
+def test_ask_history_limit_defaults_to_10() -> None:
+    assert config.ASK_HISTORY_LIMIT == 10

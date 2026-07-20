@@ -3,7 +3,7 @@ import asyncio
 from sqlalchemy import select
 
 import app.rag.index_service as index_service
-from app.db.models import Chunk, File, Workspace
+from app.db.models import Chunk, Conversation, Exchange, File, Workspace
 from app.db.session import async_session_factory
 
 EMBEDDING = [0.0] * 384
@@ -17,20 +17,22 @@ class _StubEmbedModel:
         return EMBEDDING
 
 
-class _StubCompletion:
-    def __init__(self, text: str) -> None:
-        self._text = text
+class _StubMessage:
+    def __init__(self, content: str) -> None:
+        self.content = content
 
-    def __str__(self) -> str:
-        return self._text
+
+class _StubChatResponse:
+    def __init__(self, text: str) -> None:
+        self.message = _StubMessage(text)
 
 
 class _StubLLM:
     def __init__(self, *args, **kwargs) -> None:
         pass
 
-    async def acomplete(self, prompt: str) -> _StubCompletion:
-        return _StubCompletion("<think>internal reasoning</think>\nThe real answer.")
+    async def achat(self, messages) -> _StubChatResponse:
+        return _StubChatResponse("<think>internal reasoning</think>\nThe real answer.")
 
 
 class _StubNode:
@@ -101,6 +103,30 @@ async def _get_file_status(file_id: int) -> str:
         return result.scalar_one().status
 
 
+async def _seed_conversation(workspace_id: int) -> int:
+    async with async_session_factory() as session:
+        conversation = Conversation(workspace_id=workspace_id, title="Test conversation")
+        session.add(conversation)
+        await session.commit()
+        await session.refresh(conversation)
+        return conversation.id
+
+
+async def _add_exchange(
+    conversation_id: int, question: str, answer: str | None, status: str
+) -> None:
+    async with async_session_factory() as session:
+        session.add(
+            Exchange(
+                conversation_id=conversation_id,
+                question=question,
+                answer=answer,
+                status=status,
+            )
+        )
+        await session.commit()
+
+
 def test_answer_question_strips_reasoning_and_returns_sources(monkeypatch) -> None:
     monkeypatch.setattr(index_service, "_get_embed_model", lambda: _StubEmbedModel())
     monkeypatch.setattr(index_service, "MiniMax", _StubLLM)
@@ -111,7 +137,9 @@ def test_answer_question_strips_reasoning_and_returns_sources(monkeypatch) -> No
     result = asyncio.run(index_service.answer_question(workspace_id, "What is the answer?"))
 
     assert result["answer"] == "The real answer."
-    assert result["sources"] == ["Report"]
+    assert result["sources"] == [
+        {"name": "Report", "url": f"/files/{workspace_id}/stored.pdf"}
+    ]
 
 
 def test_answer_question_without_chunks_returns_placeholder(monkeypatch) -> None:
@@ -149,7 +177,9 @@ def test_answer_question_uses_gemini_when_selected(monkeypatch) -> None:
     result = asyncio.run(index_service.answer_question(workspace_id, "What is the answer?"))
 
     assert result["answer"] == "The real answer."
-    assert result["sources"] == ["Report"]
+    assert result["sources"] == [
+        {"name": "Report", "url": f"/files/{workspace_id}/stored.pdf"}
+    ]
 
 
 def test_answer_question_requires_google_api_key_when_gemini_selected(monkeypatch) -> None:
@@ -183,3 +213,129 @@ def test_index_uploaded_file_fails_cleanly_without_google_api_key(monkeypatch, t
     asyncio.run(index_service.index_uploaded_file(file_id, tmp_path / "stored.pdf"))
 
     assert asyncio.run(_get_file_status(file_id)) == "failed"
+
+
+def test_answer_question_clears_sources_when_llm_reports_not_found(monkeypatch) -> None:
+    class _NotFoundLLM(_StubLLM):
+        async def achat(self, messages) -> _StubChatResponse:
+            return _StubChatResponse(index_service.NOT_FOUND_ANSWER)
+
+    monkeypatch.setattr(index_service, "_get_embed_model", lambda: _StubEmbedModel())
+    monkeypatch.setattr(index_service, "MiniMax", _NotFoundLLM)
+    monkeypatch.setattr(index_service, "MINIMAX_API_KEY", "test-key")
+
+    workspace_id = asyncio.run(_seed_workspace_with_chunk())
+
+    result = asyncio.run(
+        index_service.answer_question(workspace_id, "Can you write a Fibonacci function?")
+    )
+
+    assert result["answer"] == index_service.NOT_FOUND_ANSWER
+    assert result["sources"] == []
+
+
+def test_answer_question_without_conversation_id_sends_no_history(monkeypatch) -> None:
+    captured: list[list] = []
+
+    class _CapturingLLM(_StubLLM):
+        async def achat(self, messages) -> _StubChatResponse:
+            captured.append(messages)
+            return await super().achat(messages)
+
+    monkeypatch.setattr(index_service, "_get_embed_model", lambda: _StubEmbedModel())
+    monkeypatch.setattr(index_service, "MiniMax", _CapturingLLM)
+    monkeypatch.setattr(index_service, "MINIMAX_API_KEY", "test-key")
+
+    workspace_id = asyncio.run(_seed_workspace_with_chunk())
+
+    asyncio.run(index_service.answer_question(workspace_id, "What is the answer?"))
+
+    # Only the system instruction and the new question, no prior turns.
+    assert len(captured[0]) == 2
+
+
+def test_answer_question_includes_prior_answered_exchanges_as_history(monkeypatch) -> None:
+    captured: list[list] = []
+
+    class _CapturingLLM(_StubLLM):
+        async def achat(self, messages) -> _StubChatResponse:
+            captured.append(messages)
+            return await super().achat(messages)
+
+    monkeypatch.setattr(index_service, "_get_embed_model", lambda: _StubEmbedModel())
+    monkeypatch.setattr(index_service, "MiniMax", _CapturingLLM)
+    monkeypatch.setattr(index_service, "MINIMAX_API_KEY", "test-key")
+
+    workspace_id = asyncio.run(_seed_workspace_with_chunk())
+    conversation_id = asyncio.run(_seed_conversation(workspace_id))
+    asyncio.run(_add_exchange(conversation_id, "First question?", "First answer.", "answered"))
+
+    asyncio.run(
+        index_service.answer_question(
+            workspace_id, "Second question?", conversation_id=conversation_id
+        )
+    )
+
+    messages = captured[0]
+    # system instruction, prior user, prior assistant, new user question
+    assert len(messages) == 4
+    assert messages[1].content == "First question?"
+    assert messages[2].content == "First answer."
+
+
+def test_answer_question_caps_history_at_ask_history_limit(monkeypatch) -> None:
+    captured: list[list] = []
+
+    class _CapturingLLM(_StubLLM):
+        async def achat(self, messages) -> _StubChatResponse:
+            captured.append(messages)
+            return await super().achat(messages)
+
+    monkeypatch.setattr(index_service, "_get_embed_model", lambda: _StubEmbedModel())
+    monkeypatch.setattr(index_service, "MiniMax", _CapturingLLM)
+    monkeypatch.setattr(index_service, "MINIMAX_API_KEY", "test-key")
+    monkeypatch.setattr(index_service, "ASK_HISTORY_LIMIT", 1)
+
+    workspace_id = asyncio.run(_seed_workspace_with_chunk())
+    conversation_id = asyncio.run(_seed_conversation(workspace_id))
+    asyncio.run(_add_exchange(conversation_id, "Older question?", "Older answer.", "answered"))
+    asyncio.run(_add_exchange(conversation_id, "Newer question?", "Newer answer.", "answered"))
+
+    asyncio.run(
+        index_service.answer_question(
+            workspace_id, "Third question?", conversation_id=conversation_id
+        )
+    )
+
+    messages = captured[0]
+    # system instruction, one capped prior exchange (the most recent), new user question
+    assert len(messages) == 4
+    assert messages[1].content == "Newer question?"
+    assert messages[2].content == "Newer answer."
+
+
+def test_answer_question_excludes_failed_and_pending_exchanges_from_history(monkeypatch) -> None:
+    captured: list[list] = []
+
+    class _CapturingLLM(_StubLLM):
+        async def achat(self, messages) -> _StubChatResponse:
+            captured.append(messages)
+            return await super().achat(messages)
+
+    monkeypatch.setattr(index_service, "_get_embed_model", lambda: _StubEmbedModel())
+    monkeypatch.setattr(index_service, "MiniMax", _CapturingLLM)
+    monkeypatch.setattr(index_service, "MINIMAX_API_KEY", "test-key")
+
+    workspace_id = asyncio.run(_seed_workspace_with_chunk())
+    conversation_id = asyncio.run(_seed_conversation(workspace_id))
+    asyncio.run(_add_exchange(conversation_id, "Failed question?", None, "failed"))
+    asyncio.run(_add_exchange(conversation_id, "Pending question?", None, "pending"))
+
+    asyncio.run(
+        index_service.answer_question(
+            workspace_id, "New question?", conversation_id=conversation_id
+        )
+    )
+
+    # No answered exchanges exist, so no history is included.
+    assert len(captured[0]) == 2

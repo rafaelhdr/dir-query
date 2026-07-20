@@ -1,10 +1,11 @@
 import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import CheckConstraint, ForeignKey, Index, func
+from sqlalchemy import JSON, CheckConstraint, ForeignKey, Index, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 FILE_STATUSES = ("pending", "indexed", "failed")
+EXCHANGE_STATUSES = ("pending", "answered", "failed")
 
 
 class Base(DeclarativeBase):
@@ -24,6 +25,9 @@ class Workspace(Base):
     )
 
     files: Mapped[list["File"]] = relationship(back_populates="workspace")
+    conversations: Mapped[list["Conversation"]] = relationship(
+        back_populates="workspace"
+    )
 
 
 class File(Base):
@@ -86,3 +90,46 @@ class Chunk(Base):
     file: Mapped[File] = relationship(back_populates="chunks")
 
     __table_args__ = (Index("ix_chunks_file_id", "file_id"),)
+
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(nullable=False)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        server_default=func.now(), nullable=False
+    )
+
+    workspace: Mapped[Workspace] = relationship(back_populates="conversations")
+    exchanges: Mapped[list["Exchange"]] = relationship(
+        back_populates="conversation", passive_deletes=True
+    )
+
+    __table_args__ = (Index("ix_conversations_workspace_id", "workspace_id"),)
+
+
+class Exchange(Base):
+    __tablename__ = "exchanges"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False
+    )
+    question: Mapped[str] = mapped_column(nullable=False)
+    answer: Mapped[str | None] = mapped_column(nullable=True)
+    sources: Mapped[list[dict[str, str]] | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str] = mapped_column(nullable=False, server_default="pending")
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        server_default=func.now(), nullable=False
+    )
+
+    conversation: Mapped[Conversation] = relationship(back_populates="exchanges")
+
+    __table_args__ = (
+        CheckConstraint(f"status IN {EXCHANGE_STATUSES}", name="exchanges_status_check"),
+        Index("ix_exchanges_conversation_id", "conversation_id"),
+    )

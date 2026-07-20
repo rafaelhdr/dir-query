@@ -3,6 +3,8 @@
   <head>
     <!--#set var="page_title" value="Ask — Understand Your Stuffs" -->
     <!--#include virtual="/partials/head.html" -->
+    <script src="/marked.min.js"></script>
+    <script src="/purify.min.js"></script>
   </head>
   <body>
     <!--#include virtual="/partials/nav.html" -->
@@ -14,9 +16,14 @@
       <a id="tab-files" href="#">Content</a>
     </nav>
 
+    <div class="ask-page-nav">
+      <a id="conversation-history-link" href="#">Past conversations</a>
+      <button type="button" id="new-conversation-btn" hidden>New conversation</button>
+    </div>
+
     <p>Ask a question about this workspace's uploaded documents.</p>
 
-    <div id="answer"></div>
+    <div id="exchanges"></div>
 
     <form id="ask-form" class="ask-form">
       <input type="text" name="question" placeholder="Ask a question" required />
@@ -25,10 +32,20 @@
 
     <script>
       const slug = window.location.pathname.split("/")[2];
+      const pathConversationId = window.location.pathname.split("/")[4] || null;
       const workspaceNameEl = document.getElementById("workspace-name");
+      const exchangesEl = document.getElementById("exchanges");
+      const askForm = document.getElementById("ask-form");
+      const questionInput = askForm.querySelector('input[name="question"]');
+      const submitButton = askForm.querySelector('button[type="submit"]');
+      const newConversationBtn = document.getElementById("new-conversation-btn");
+      let conversationId = null;
+
       workspaceNameEl.textContent = slug;
       document.getElementById("tab-ask").href = "/w/" + slug + "/ask";
       document.getElementById("tab-files").href = "/w/" + slug + "/feed/files";
+      document.getElementById("conversation-history-link").href =
+        "/w/" + slug + "/ask/conversations";
 
       fetch("/api/workspaces/" + slug)
         .then(async function (response) {
@@ -43,39 +60,200 @@
           workspaceNameEl.textContent = "Workspace not found";
         });
 
-      document.getElementById("ask-form").addEventListener("submit", async function (evt) {
-        evt.preventDefault();
-        const answerEl = document.getElementById("answer");
-        answerEl.textContent = "";
+      function updateNewConversationVisibility() {
+        newConversationBtn.hidden = exchangesEl.children.length === 0;
+      }
 
-        const formData = new FormData(evt.target);
-        const response = await fetch("/api/w/" + slug + "/ask", {
-          method: "POST",
-          body: formData,
-        });
+      function createExchangeElement(question) {
+        const exchangeEl = document.createElement("div");
+        exchangeEl.className = "exchange";
 
-        let data;
-        try {
-          data = await response.json();
-        } catch (e) {
-          answerEl.textContent = await response.text();
-          return;
-        }
+        const questionEl = document.createElement("p");
+        questionEl.className = "exchange-question";
+        questionEl.textContent = question;
+        exchangeEl.appendChild(questionEl);
 
-        if (response.ok) {
-          const answerP = document.createElement("p");
-          answerP.textContent = data.answer;
-          answerEl.appendChild(answerP);
+        const bodyEl = document.createElement("div");
+        bodyEl.className = "exchange-body";
+        exchangeEl.appendChild(bodyEl);
 
-          if (data.sources && data.sources.length) {
-            const sourcesP = document.createElement("p");
-            sourcesP.textContent = "Sources: " + data.sources.join(", ");
-            answerEl.appendChild(sourcesP);
-          }
-        } else {
-          answerEl.textContent = data.detail || response.statusText;
+        exchangesEl.appendChild(exchangeEl);
+        updateNewConversationVisibility();
+        return bodyEl;
+      }
+
+      function showLoading(bodyEl) {
+        bodyEl.textContent = "";
+        const loadingEl = document.createElement("p");
+        loadingEl.className = "exchange-loading";
+        loadingEl.textContent = "Thinking…";
+        bodyEl.appendChild(loadingEl);
+      }
+
+      // Force every link markdown produces to open safely in a new tab,
+      // regardless of what the LLM-generated markdown source specified.
+      DOMPurify.addHook("afterSanitizeAttributes", function (node) {
+        if (node.tagName === "A") {
+          node.setAttribute("target", "_blank");
+          node.setAttribute("rel", "noopener noreferrer");
         }
       });
+
+      const MARKDOWN_ALLOWED_TAGS = [
+        "p",
+        "strong",
+        "em",
+        "ul",
+        "ol",
+        "li",
+        "br",
+        "code",
+        "pre",
+        "blockquote",
+        "a",
+      ];
+      const MARKDOWN_ALLOWED_ATTR = ["href", "target", "rel"];
+
+      // Answer text is LLM-generated (and ultimately traceable back to
+      // user-uploaded PDF content), so it's untrusted. marked() only
+      // parses markdown into HTML — it does not sanitize — so every
+      // conversion is run through DOMPurify with a conservative allowlist
+      // before it's the one deliberate, sanitizer-guarded use of
+      // innerHTML on this page.
+      function renderMarkdown(container, text) {
+        const rawHtml = marked.parse(text);
+        const cleanHtml = DOMPurify.sanitize(rawHtml, {
+          ALLOWED_TAGS: MARKDOWN_ALLOWED_TAGS,
+          ALLOWED_ATTR: MARKDOWN_ALLOWED_ATTR,
+        });
+        container.innerHTML = cleanHtml;
+      }
+
+      function showAnswer(bodyEl, answer, sources) {
+        bodyEl.textContent = "";
+
+        const answerEl = document.createElement("div");
+        answerEl.className = "exchange-answer";
+        renderMarkdown(answerEl, answer);
+        bodyEl.appendChild(answerEl);
+
+        if (sources && sources.length) {
+          const sourcesEl = document.createElement("p");
+          sourcesEl.className = "exchange-sources";
+          sourcesEl.appendChild(document.createTextNode("Sources: "));
+          sources.forEach(function (source, index) {
+            if (index > 0) {
+              sourcesEl.appendChild(document.createTextNode(", "));
+            }
+            const link = document.createElement("a");
+            link.href = source.url;
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.textContent = source.name;
+            sourcesEl.appendChild(link);
+          });
+          bodyEl.appendChild(sourcesEl);
+        }
+      }
+
+      function showError(bodyEl, message) {
+        bodyEl.textContent = "";
+        const errorEl = document.createElement("p");
+        errorEl.className = "exchange-error";
+        errorEl.textContent = message;
+        bodyEl.appendChild(errorEl);
+      }
+
+      function resetConversation() {
+        conversationId = null;
+        exchangesEl.textContent = "";
+        updateNewConversationVisibility();
+        window.history.replaceState({}, "", "/w/" + slug + "/ask");
+      }
+
+      newConversationBtn.addEventListener("click", function () {
+        resetConversation();
+      });
+
+      askForm.addEventListener("submit", async function (evt) {
+        evt.preventDefault();
+
+        const formData = new FormData(evt.target);
+        const question = formData.get("question");
+        const isFirstQuestion = conversationId === null;
+        askForm.reset();
+
+        const bodyEl = createExchangeElement(question);
+        showLoading(bodyEl);
+
+        if (conversationId) {
+          formData.set("conversation_id", conversationId);
+        }
+
+        questionInput.disabled = true;
+        submitButton.disabled = true;
+
+        try {
+          let response;
+          try {
+            response = await fetch("/api/w/" + slug + "/ask", {
+              method: "POST",
+              body: formData,
+            });
+          } catch (e) {
+            showError(bodyEl, "Something went wrong asking your question. Please try again.");
+            return;
+          }
+
+          let data;
+          try {
+            data = await response.json();
+          } catch (e) {
+            showError(bodyEl, "Something went wrong asking your question. Please try again.");
+            return;
+          }
+
+          if (response.ok) {
+            conversationId = data.conversation_id;
+            if (isFirstQuestion) {
+              window.history.replaceState({}, "", "/w/" + slug + "/ask/" + conversationId);
+            }
+            showAnswer(bodyEl, data.answer, data.sources);
+          } else {
+            showError(bodyEl, data.detail || response.statusText);
+          }
+        } finally {
+          questionInput.disabled = false;
+          submitButton.disabled = false;
+          questionInput.focus();
+        }
+      });
+
+      function loadConversation(id) {
+        fetch("/api/w/" + slug + "/conversations/" + id)
+          .then(async function (response) {
+            if (!response.ok) {
+              return;
+            }
+            const conversation = await response.json();
+            conversationId = conversation.id;
+            conversation.exchanges.forEach(function (exchange) {
+              const bodyEl = createExchangeElement(exchange.question);
+              if (exchange.status === "answered") {
+                showAnswer(bodyEl, exchange.answer, exchange.sources);
+              } else if (exchange.status === "failed") {
+                showError(bodyEl, "This question could not be answered.");
+              } else {
+                showLoading(bodyEl);
+              }
+            });
+          })
+          .catch(function () {});
+      }
+
+      if (pathConversationId) {
+        loadConversation(pathConversationId);
+      }
     </script>
   </body>
 </html>

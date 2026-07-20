@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 
 from llama_index.core.embeddings import BaseEmbedding
-from llama_index.core.llms import LLM
+from llama_index.core.llms import LLM, ChatMessage, MessageRole
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.google_genai import GoogleGenAIEmbedding
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -11,8 +11,10 @@ from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.llms.minimax import MiniMax
 from llama_index.readers.file import PDFReader
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import (
+    ASK_HISTORY_LIMIT,
     EMBED_PROVIDER,
     GEMINI_EMBED_MODEL,
     GEMINI_LLM_MODEL,
@@ -23,12 +25,13 @@ from app.config import (
     MINIMAX_LLM_MODEL,
     UPLOAD_DIR,
 )
-from app.db.models import Chunk, File
+from app.db.models import Chunk, Exchange, File
 from app.db.session import async_session_factory
 
 logger = logging.getLogger(__name__)
 
 TOP_K = 5
+NOT_FOUND_ANSWER = "I couldn't find anything related to your question in the uploaded files."
 
 _pdf_reader = PDFReader()
 _splitter = SentenceSplitter()
@@ -125,7 +128,30 @@ async def sync_pending_files() -> None:
     logger.info("Startup sync: complete")
 
 
-async def answer_question(workspace_id: int, question: str) -> dict[str, object]:
+async def _load_history_messages(
+    session: AsyncSession, conversation_id: int
+) -> list[ChatMessage]:
+    result = await session.execute(
+        select(Exchange.question, Exchange.answer)
+        .where(
+            Exchange.conversation_id == conversation_id,
+            Exchange.status == "answered",
+        )
+        .order_by(Exchange.created_at.desc())
+        .limit(ASK_HISTORY_LIMIT)
+    )
+    rows = list(reversed(result.all()))
+
+    messages: list[ChatMessage] = []
+    for prior_question, prior_answer in rows:
+        messages.append(ChatMessage(role=MessageRole.USER, content=prior_question))
+        messages.append(ChatMessage(role=MessageRole.ASSISTANT, content=prior_answer))
+    return messages
+
+
+async def answer_question(
+    workspace_id: int, question: str, conversation_id: int | None = None
+) -> dict[str, object]:
     llm = _get_llm()
 
     embed_model = _get_embed_model()
@@ -133,7 +159,7 @@ async def answer_question(workspace_id: int, question: str) -> dict[str, object]
 
     async with async_session_factory() as session:
         result = await session.execute(
-            select(Chunk.text, File.display_name)
+            select(Chunk.text, File.display_name, File.filename)
             .join(File, Chunk.file_id == File.id)
             .where(File.workspace_id == workspace_id)
             .order_by(Chunk.embedding.cosine_distance(query_embedding))
@@ -141,18 +167,48 @@ async def answer_question(workspace_id: int, question: str) -> dict[str, object]
         )
         rows = result.all()
 
-    if not rows:
-        return {"answer": "No documents have been indexed yet.", "sources": []}
+        if not rows:
+            return {"answer": "No documents have been indexed yet.", "sources": []}
 
-    context = "\n\n".join(text for text, _ in rows)
-    sources = sorted({display_name for _, display_name in rows})
+        history = (
+            await _load_history_messages(session, conversation_id)
+            if conversation_id is not None
+            else []
+        )
 
-    prompt = (
-        "Answer the question using only the context below. "
-        "If the answer isn't in the context, say you don't know.\n\n"
-        f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
-    )
+    context = "\n\n".join(text for text, _, _ in rows)
 
-    response = await llm.acomplete(prompt)
+    seen_filenames: set[str] = set()
+    sources: list[dict[str, str]] = []
+    for _, display_name, filename in rows:
+        if filename in seen_filenames:
+            continue
+        seen_filenames.add(filename)
+        sources.append(
+            {"name": display_name, "url": f"/files/{workspace_id}/{filename}"}
+        )
+    sources.sort(key=lambda source: source["name"])
 
-    return {"answer": _strip_reasoning(str(response)), "sources": sources}
+    messages = [
+        ChatMessage(
+            role=MessageRole.SYSTEM,
+            content=(
+                "Answer the question using only the context below. "
+                "If the answer isn't in the context, respond with exactly "
+                f'this sentence and nothing else: "{NOT_FOUND_ANSWER}"'
+            ),
+        ),
+        *history,
+        ChatMessage(
+            role=MessageRole.USER,
+            content=f"Context:\n{context}\n\nQuestion: {question}\nAnswer:",
+        ),
+    ]
+
+    response = await llm.achat(messages)
+    answer = _strip_reasoning(str(response.message.content))
+
+    if NOT_FOUND_ANSWER.lower() in answer.lower():
+        return {"answer": NOT_FOUND_ANSWER, "sources": []}
+
+    return {"answer": answer, "sources": sources}

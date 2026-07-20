@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!--#set var="page_title" value="Past conversations — Understand Your Stuffs" -->
+    <!--#include virtual="/partials/head.html" -->
+  </head>
+  <body>
+    <!--#include virtual="/partials/nav.html" -->
+
+    <h1><span id="workspace-name"></span></h1>
+
+    <nav class="workspace-tabs">
+      <a id="tab-ask" href="#" class="active" aria-current="page">Ask</a>
+      <a id="tab-files" href="#">Content</a>
+    </nav>
+
+    <h2>Past conversations</h2>
+
+    <div id="conversation-list"></div>
+
+    <script>
+      const slug = window.location.pathname.split("/")[2];
+      const workspaceNameEl = document.getElementById("workspace-name");
+      const listEl = document.getElementById("conversation-list");
+
+      workspaceNameEl.textContent = slug;
+      document.getElementById("tab-ask").href = "/w/" + slug + "/ask";
+      document.getElementById("tab-files").href = "/w/" + slug + "/feed/files";
+
+      fetch("/api/workspaces/" + slug)
+        .then(async function (response) {
+          if (!response.ok) {
+            workspaceNameEl.textContent = "Workspace not found";
+            return;
+          }
+          const workspace = await response.json();
+          workspaceNameEl.textContent = workspace.name;
+        })
+        .catch(function () {
+          workspaceNameEl.textContent = "Workspace not found";
+        });
+
+      function renderConversations(conversations) {
+        listEl.textContent = "";
+
+        if (!conversations.length) {
+          const emptyEl = document.createElement("p");
+          emptyEl.textContent = "No conversations yet. Ask a question to start one.";
+          listEl.appendChild(emptyEl);
+          return;
+        }
+
+        const ul = document.createElement("ul");
+        conversations.forEach(function (conversation) {
+          const li = document.createElement("li");
+          const link = document.createElement("a");
+          link.href = "/w/" + slug + "/ask/" + conversation.id;
+          link.textContent = conversation.title;
+          li.appendChild(link);
+
+          const dateEl = document.createElement("span");
+          dateEl.className = "exchange-sources";
+          dateEl.textContent = " — " + new Date(conversation.created_at).toLocaleString();
+          li.appendChild(dateEl);
+
+          ul.appendChild(li);
+        });
+        listEl.appendChild(ul);
+      }
+
+      fetch("/api/w/" + slug + "/conversations")
+        .then(async function (response) {
+          if (!response.ok) {
+            renderConversations([]);
+            return;
+          }
+          const body = await response.json();
+          renderConversations(body.data || []);
+        })
+        .catch(function () {
+          renderConversations([]);
+        });
+    </script>
+  </body>
+</html>
