@@ -11,7 +11,7 @@
 
     <nav class="workspace-tabs">
       <a id="tab-ask" href="#" class="active" aria-current="page">Ask</a>
-      <a id="tab-upload" href="#">Upload</a>
+      <a id="tab-files" href="#">Content</a>
     </nav>
 
     <p>Ask a question about this workspace's uploaded documents.</p>
@@ -28,7 +28,7 @@
       const workspaceNameEl = document.getElementById("workspace-name");
       workspaceNameEl.textContent = slug;
       document.getElementById("tab-ask").href = "/w/" + slug + "/ask";
-      document.getElementById("tab-upload").href = "/w/" + slug + "/feed/upload";
+      document.getElementById("tab-files").href = "/w/" + slug + "/feed/files";
 
       fetch("/api/workspaces/" + slug)
         .then(async function (response) {

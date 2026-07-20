@@ -34,18 +34,33 @@ class File(Base):
         ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
     )
     filename: Mapped[str] = mapped_column(nullable=False)
-    original_name: Mapped[str] = mapped_column(nullable=False)
+    display_name: Mapped[str] = mapped_column(nullable=False)
+    original_filename: Mapped[str] = mapped_column(nullable=False)
     uploaded_at: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now(), nullable=False
     )
     status: Mapped[str] = mapped_column(nullable=False, server_default="pending")
 
     workspace: Mapped[Workspace] = relationship(back_populates="files")
-    chunks: Mapped[list["Chunk"]] = relationship(back_populates="file")
+    chunks: Mapped[list["Chunk"]] = relationship(
+        back_populates="file", passive_deletes=True
+    )
 
     __table_args__ = (
         CheckConstraint(f"status IN {FILE_STATUSES}", name="files_status_check"),
         Index("ix_files_workspace_id", "workspace_id"),
+        Index(
+            "uq_files_workspace_id_display_name",
+            "workspace_id",
+            "display_name",
+            unique=True,
+        ),
+        Index(
+            "uq_files_workspace_id_original_filename",
+            "workspace_id",
+            "original_filename",
+            unique=True,
+        ),
     )
 
 

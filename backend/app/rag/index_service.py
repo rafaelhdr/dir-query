@@ -133,7 +133,7 @@ async def answer_question(workspace_id: int, question: str) -> dict[str, object]
 
     async with async_session_factory() as session:
         result = await session.execute(
-            select(Chunk.text, File.original_name)
+            select(Chunk.text, File.display_name)
             .join(File, Chunk.file_id == File.id)
             .where(File.workspace_id == workspace_id)
             .order_by(Chunk.embedding.cosine_distance(query_embedding))
@@ -145,7 +145,7 @@ async def answer_question(workspace_id: int, question: str) -> dict[str, object]
         return {"answer": "No documents have been indexed yet.", "sources": []}
 
     context = "\n\n".join(text for text, _ in rows)
-    sources = sorted({original_name for _, original_name in rows})
+    sources = sorted({display_name for _, display_name in rows})
 
     prompt = (
         "Answer the question using only the context below. "

@@ -1,7 +1,17 @@
 import re
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,
+)
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_workspace_by_slug
@@ -23,6 +33,7 @@ def _sanitize_filename(filename: str) -> str:
 async def create_upload(
     file: UploadFile,
     background_tasks: BackgroundTasks,
+    name: str | None = Form(None),
     workspace: Workspace = Depends(get_workspace_by_slug),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str | int]:
@@ -44,6 +55,34 @@ async def create_upload(
             detail="File exceeds maximum upload size",
         )
 
+    display_name = name.strip() if name and name.strip() else file.filename
+    original_filename = file.filename
+
+    existing_display_name = await session.execute(
+        select(File.id).where(
+            File.workspace_id == workspace.id, File.display_name == display_name
+        )
+    )
+    if existing_display_name.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A file named '{display_name}' already exists in this workspace. "
+            "Please choose a different name.",
+        )
+
+    existing_original_filename = await session.execute(
+        select(File.id).where(
+            File.workspace_id == workspace.id,
+            File.original_filename == original_filename,
+        )
+    )
+    if existing_original_filename.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A file with the original filename '{original_filename}' "
+            "already exists in this workspace.",
+        )
+
     workspace_dir = UPLOAD_DIR / str(workspace.id)
     workspace_dir.mkdir(parents=True, exist_ok=True)
     stored_filename = f"{uuid.uuid4()}-{_sanitize_filename(file.filename)}"
@@ -53,17 +92,27 @@ async def create_upload(
     db_file = File(
         workspace_id=workspace.id,
         filename=stored_filename,
-        original_name=file.filename,
+        display_name=display_name,
+        original_filename=original_filename,
         status="pending",
     )
     session.add(db_file)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        stored_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A file with this name already exists in this workspace.",
+        ) from exc
     await session.refresh(db_file)
 
     background_tasks.add_task(index_service.index_uploaded_file, db_file.id, stored_path)
 
     return {
         "filename": stored_filename,
-        "original_filename": file.filename,
+        "display_name": display_name,
+        "original_filename": original_filename,
         "size": len(contents),
     }

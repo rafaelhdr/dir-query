@@ -1,70 +1,4 @@
-## Purpose
-
-The document-upload capability lets a user push PDF documents to the
-server, scoped to a workspace, from that workspace's content page
-(`/w/<slug>/feed/files`). Listing, opening, and deleting previously
-uploaded files is covered by the document-management capability.
-
-## Requirements
-
-### Requirement: Upload page lets the user push a PDF to the server
-The system SHALL serve a page at `/w/<slug>/feed/files` for an existing
-workspace identified by `<slug>` with a collapsible "Add content" section
-containing a file picker, an editable display-name field, and submit
-control that lets the user select a local file and upload it to the
-server for that workspace under a chosen display name.
-
-#### Scenario: Visiting the content page for an existing workspace
-- **WHEN** a user navigates to `/w/<slug>/feed/files` for a workspace
-  that exists
-- **THEN** the page loads successfully and displays the "Add content"
-  section and the file list
-
-#### Scenario: Successful upload
-- **WHEN** a user selects a valid PDF file, confirms or edits its
-  prefilled display name, and submits the upload form on a workspace's
-  content page
-- **THEN** the file is sent to the backend for that workspace under that
-  display name and the file list shows it
-
-### Requirement: Only PDF files are accepted
-The system SHALL accept only PDF files for upload and SHALL reject any other file type with a clear error, without storing the rejected file.
-
-#### Scenario: Rejecting a non-PDF file
-- **WHEN** a user attempts to upload a file that is not a PDF (by extension and declared content type)
-- **THEN** the backend responds with an error indicating only PDF files are supported and does not persist the file
-
-#### Scenario: Accepting a PDF file
-- **WHEN** a user uploads a file with a `.pdf` extension and `application/pdf` content type
-- **THEN** the backend accepts and persists the file
-
-### Requirement: Uploaded files are persisted to server-side storage
-The system SHALL store accepted PDF uploads under a server-side directory
-scoped to the owning workspace, SHALL record a corresponding row in the
-`files` table (`workspace_id`, `filename`, `display_name` set from the
-user-provided display name, `original_filename` set from the uploaded
-file's own filename, `status` starting as `pending`), and SHALL NOT parse,
-index, or otherwise process the file contents as part of accepting the
-upload (parsing and indexing are covered by the document-indexing
-capability).
-
-#### Scenario: Uploaded file persists after restart
-- **WHEN** a PDF file has been successfully uploaded to a workspace and
-  the backend service is restarted
-- **THEN** the previously uploaded file still exists in that workspace's
-  server-side storage and its `files` row is still present
-
-#### Scenario: Upload to a nonexistent workspace is rejected
-- **WHEN** a user attempts to upload a file to a slug that does not
-  correspond to any existing workspace
-- **THEN** the backend responds with a 404 error and does not persist the
-  file
-
-#### Scenario: Files from different workspaces do not collide
-- **WHEN** two different workspaces each upload a file with the same
-  display name
-- **THEN** both files are stored and tracked independently, scoped to
-  their own workspace
+## ADDED Requirements
 
 ### Requirement: Add-content section is collapsible and prefills the display name
 The system SHALL present the upload form on the content page inside a
@@ -140,12 +74,55 @@ independently of whether the display name is unique.
 - **THEN** the backend still rejects the upload, since display name and
   original filename are each independently unique
 
-### Requirement: Oversized uploads are rejected
-The system SHALL reject uploads larger than a configured maximum size with a clear error, without persisting the file.
+## MODIFIED Requirements
 
-#### Scenario: File exceeds size limit
-- **WHEN** a user attempts to upload a PDF larger than the configured maximum upload size
-- **THEN** the backend rejects the upload with an error and does not persist the file
+### Requirement: Upload page lets the user push a PDF to the server
+The system SHALL serve a page at `/w/<slug>/feed/files` for an existing
+workspace identified by `<slug>` with a collapsible "Add content" section
+containing a file picker, an editable display-name field, and submit
+control that lets the user select a local file and upload it to the
+server for that workspace under a chosen display name.
+
+#### Scenario: Visiting the content page for an existing workspace
+- **WHEN** a user navigates to `/w/<slug>/feed/files` for a workspace
+  that exists
+- **THEN** the page loads successfully and displays the "Add content"
+  section and the file list
+
+#### Scenario: Successful upload
+- **WHEN** a user selects a valid PDF file, confirms or edits its
+  prefilled display name, and submits the upload form on a workspace's
+  content page
+- **THEN** the file is sent to the backend for that workspace under that
+  display name and the file list shows it
+
+### Requirement: Uploaded files are persisted to server-side storage
+The system SHALL store accepted PDF uploads under a server-side directory
+scoped to the owning workspace, SHALL record a corresponding row in the
+`files` table (`workspace_id`, `filename`, `display_name` set from the
+user-provided display name, `original_filename` set from the uploaded
+file's own filename, `status` starting as `pending`), and SHALL NOT parse,
+index, or otherwise process the file contents as part of accepting the
+upload (parsing and indexing are covered by the document-indexing
+capability).
+
+#### Scenario: Uploaded file persists after restart
+- **WHEN** a PDF file has been successfully uploaded to a workspace and
+  the backend service is restarted
+- **THEN** the previously uploaded file still exists in that workspace's
+  server-side storage and its `files` row is still present
+
+#### Scenario: Upload to a nonexistent workspace is rejected
+- **WHEN** a user attempts to upload a file to a slug that does not
+  correspond to any existing workspace
+- **THEN** the backend responds with a 404 error and does not persist the
+  file
+
+#### Scenario: Files from different workspaces do not collide
+- **WHEN** two different workspaces each upload a file with the same
+  display name
+- **THEN** both files are stored and tracked independently, scoped to
+  their own workspace
 
 ### Requirement: Content page heading shows the workspace's name
 The system SHALL display the workspace's name (not a generic label) as
@@ -178,4 +155,16 @@ selected tab.
 - **WHEN** a user is on a workspace's content page
 - **THEN** the "Content" tab in the tab bar is visually marked as
   selected and the "Ask" tab is not
-</content>
+
+## REMOVED Requirements
+
+### Requirement: Upload is write-only, with no CRUD operations
+**Reason**: Superseded by the new `document-management` capability, which
+adds listing, opening, and deleting previously uploaded files.
+**Migration**: No migration needed; existing uploaded files are usable
+immediately with the new list/open/delete endpoints and UI once this
+change ships.
+
+#### Scenario: No listing capability exists
+- **WHEN** a user looks for a way to view previously uploaded files
+- **THEN** no such listing page or endpoint is available

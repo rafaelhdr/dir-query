@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!--#set var="page_title" value="Content — Understand Your Stuffs" -->
+    <!--#include virtual="/partials/head.html" -->
+  </head>
+  <body>
+    <!--#include virtual="/partials/nav.html" -->
+
+    <h1><span id="workspace-name"></span></h1>
+
+    <nav class="workspace-tabs">
+      <a id="tab-ask" href="#">Ask</a>
+      <a id="tab-files" href="#" class="active" aria-current="page">Content</a>
+    </nav>
+
+    <details id="add-content">
+      <summary>Add content</summary>
+      <form id="upload-form">
+        <input type="file" name="file" accept="application/pdf" required />
+        <input type="text" name="name" placeholder="Display name" required />
+        <button type="submit">Upload</button>
+      </form>
+      <div id="upload-result"></div>
+    </details>
+
+    <div class="file-list-header">
+      <h2>Files</h2>
+      <button id="refresh-button" type="button">Refresh</button>
+    </div>
+
+    <table id="file-list">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="file-list-body"></tbody>
+    </table>
+
+    <script>
+      const slug = window.location.pathname.split("/")[2];
+      const workspaceNameEl = document.getElementById("workspace-name");
+      workspaceNameEl.textContent = slug;
+      document.getElementById("tab-ask").href = "/w/" + slug + "/ask";
+      document.getElementById("tab-files").href = "/w/" + slug + "/feed/files";
+
+      fetch("/api/workspaces/" + slug)
+        .then(async function (response) {
+          if (!response.ok) {
+            workspaceNameEl.textContent = "Workspace not found";
+            return;
+          }
+          const workspace = await response.json();
+          workspaceNameEl.textContent = workspace.name;
+        })
+        .catch(function () {
+          workspaceNameEl.textContent = "Workspace not found";
+        });
+
+      const fileInput = document.querySelector('#upload-form input[type="file"]');
+      const nameInput = document.querySelector('#upload-form input[name="name"]');
+
+      fileInput.addEventListener("change", function () {
+        if (fileInput.files.length) {
+          nameInput.value = fileInput.files[0].name;
+        }
+      });
+
+      function renderFiles(files) {
+        const tbody = document.getElementById("file-list-body");
+        tbody.innerHTML = "";
+
+        files.forEach(function (file) {
+          const tr = document.createElement("tr");
+
+          const nameTd = document.createElement("td");
+          const nameLink = document.createElement("a");
+          nameLink.href = file.url;
+          nameLink.target = "_blank";
+          nameLink.rel = "noopener";
+          nameLink.className = "file-open-link";
+          nameLink.title = "Open in a new tab";
+          nameLink.textContent = file.display_name;
+          const openIcon = document.createElement("span");
+          openIcon.className = "open-icon";
+          openIcon.setAttribute("aria-hidden", "true");
+          openIcon.textContent = "↗";
+          nameLink.appendChild(openIcon);
+          nameTd.appendChild(nameLink);
+          tr.appendChild(nameTd);
+
+          const statusTd = document.createElement("td");
+          statusTd.textContent = file.status;
+          tr.appendChild(statusTd);
+
+          const deleteTd = document.createElement("td");
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.textContent = "Delete";
+          deleteButton.addEventListener("click", function () {
+            deleteFile(file.id);
+          });
+          deleteTd.appendChild(deleteButton);
+          tr.appendChild(deleteTd);
+
+          tbody.appendChild(tr);
+        });
+      }
+
+      function loadFiles() {
+        return fetch("/api/w/" + slug + "/files")
+          .then(async function (response) {
+            if (!response.ok) {
+              renderFiles([]);
+              return;
+            }
+            const body = await response.json();
+            renderFiles(body.data || []);
+          })
+          .catch(function () {
+            renderFiles([]);
+          });
+      }
+
+      function deleteFile(fileId) {
+        fetch("/api/w/" + slug + "/files/" + fileId, { method: "DELETE" }).then(function () {
+          loadFiles();
+        });
+      }
+
+      document.getElementById("refresh-button").addEventListener("click", loadFiles);
+
+      document.getElementById("upload-form").addEventListener("submit", async function (evt) {
+        evt.preventDefault();
+        const resultEl = document.getElementById("upload-result");
+        resultEl.textContent = "";
+
+        const formData = new FormData(evt.target);
+        const response = await fetch("/api/w/" + slug + "/uploads", {
+          method: "POST",
+          body: formData,
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          resultEl.textContent = await response.text();
+          return;
+        }
+
+        if (response.ok) {
+          evt.target.reset();
+          loadFiles();
+        } else {
+          resultEl.textContent = data.detail || response.statusText;
+        }
+      });
+
+      loadFiles();
+    </script>
+  </body>
+</html>

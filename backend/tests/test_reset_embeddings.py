@@ -31,7 +31,8 @@ async def _seed_chunk() -> int:
         file = File(
             workspace_id=workspace.id,
             filename="stored.pdf",
-            original_name="report.pdf",
+            display_name="Report",
+            original_filename="report.pdf",
             status="indexed",
         )
         session.add(file)

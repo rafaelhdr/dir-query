@@ -110,6 +110,15 @@ uv run uvicorn app.main:app --reload   # run locally without Docker
 - Add a corresponding test module in `backend/tests/`.
 - Keep `uv.lock` committed and in sync with `pyproject.toml` (`uv sync`
   regenerates it as needed).
+- **Tests require a database whose name ends in `_test`** (e.g.
+  `understand_your_stuffs_test`), set via `POSTGRES_DB`. The suite's
+  `conftest.py` truncates `workspaces`/`files`/`chunks` after every test and
+  refuses to start if `POSTGRES_DB` doesn't end in `_test` — this guards
+  against pointing the local `.env`'s dev `POSTGRES_DB` at pytest and wiping
+  real data. Create it once with `CREATE DATABASE understand_your_stuffs_test`
+  on the same Postgres instance, run `POSTGRES_DB=understand_your_stuffs_test
+  uv run alembic upgrade head` to apply migrations to it, then run tests with
+  that `POSTGRES_DB` set.
 
 ## Frontend development
 

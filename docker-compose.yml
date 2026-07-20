@@ -50,6 +50,8 @@ services:
     build: ./frontend
     ports:
       - "${FRONTEND_PORT:-8080}:80"
+    volumes:
+      - ./backend/data/uploads:/data/uploads:ro
     depends_on:
       - backend
 

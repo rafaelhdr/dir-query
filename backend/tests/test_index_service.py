@@ -52,7 +52,8 @@ async def _seed_workspace_with_chunk() -> int:
         file = File(
             workspace_id=workspace.id,
             filename="stored.pdf",
-            original_name="report.pdf",
+            display_name="Report",
+            original_filename="report.pdf",
             status="indexed",
         )
         session.add(file)
@@ -84,7 +85,8 @@ async def _seed_pending_file(workspace_id: int) -> int:
         file = File(
             workspace_id=workspace_id,
             filename="stored.pdf",
-            original_name="report.pdf",
+            display_name="Report",
+            original_filename="report.pdf",
             status="pending",
         )
         session.add(file)
@@ -109,7 +111,7 @@ def test_answer_question_strips_reasoning_and_returns_sources(monkeypatch) -> No
     result = asyncio.run(index_service.answer_question(workspace_id, "What is the answer?"))
 
     assert result["answer"] == "The real answer."
-    assert result["sources"] == ["report.pdf"]
+    assert result["sources"] == ["Report"]
 
 
 def test_answer_question_without_chunks_returns_placeholder(monkeypatch) -> None:
@@ -147,7 +149,7 @@ def test_answer_question_uses_gemini_when_selected(monkeypatch) -> None:
     result = asyncio.run(index_service.answer_question(workspace_id, "What is the answer?"))
 
     assert result["answer"] == "The real answer."
-    assert result["sources"] == ["report.pdf"]
+    assert result["sources"] == ["Report"]
 
 
 def test_answer_question_requires_google_api_key_when_gemini_selected(monkeypatch) -> None:
