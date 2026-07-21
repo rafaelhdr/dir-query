@@ -26,9 +26,9 @@ LLM_PROVIDER = _validate_choice(
     "LLM_PROVIDER", os.getenv("LLM_PROVIDER", "minimax"), {"minimax", "gemini"}
 )
 
-POSTGRES_USER = os.getenv("POSTGRES_USER", "understand_your_stuffs")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "dir_query")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "")
-POSTGRES_DB = os.getenv("POSTGRES_DB", "understand_your_stuffs")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "dir_query")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 DATABASE_URL = (

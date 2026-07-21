@@ -14,7 +14,7 @@ if not config.POSTGRES_DB.endswith("_test"):
         "This test suite truncates workspaces/files/chunks/conversations/"
         "exchanges after every test, "
         "so it must never point at a dev or prod database. Set POSTGRES_DB to "
-        "a name ending in '_test' (e.g. POSTGRES_DB=understand_your_stuffs_test) "
+        "a name ending in '_test' (e.g. POSTGRES_DB=dir_query_test) "
         "before running pytest."
     )
 

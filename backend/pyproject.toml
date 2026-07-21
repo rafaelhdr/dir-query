@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "API backend for understand-your-stuffs"
+description = "API backend for dir-query"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
