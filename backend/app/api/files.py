@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_workspace_by_slug
+from app.api.deps import get_workspace_by_slug, require_workspace_edit_access
 from app.config import UPLOAD_DIR
 from app.db.models import File, Workspace
 from app.db.session import get_session
@@ -51,7 +51,7 @@ async def list_files(
 @router.delete("/w/{slug}/files/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_file(
     file_id: int,
-    workspace: Workspace = Depends(get_workspace_by_slug),
+    workspace: Workspace = Depends(require_workspace_edit_access),
     session: AsyncSession = Depends(get_session),
 ) -> None:
     file = await _get_workspace_file(workspace, file_id, session)

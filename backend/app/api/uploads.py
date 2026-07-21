@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_workspace_by_slug
+from app.api.deps import require_workspace_edit_access
 from app.config import MAX_UPLOAD_BYTES, UPLOAD_DIR
 from app.db.models import File, Workspace
 from app.db.session import get_session
@@ -34,7 +34,7 @@ async def create_upload(
     file: UploadFile,
     background_tasks: BackgroundTasks,
     name: str | None = Form(None),
-    workspace: Workspace = Depends(get_workspace_by_slug),
+    workspace: Workspace = Depends(require_workspace_edit_access),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str | int]:
     if not file.filename or not file.filename.lower().endswith(".pdf"):

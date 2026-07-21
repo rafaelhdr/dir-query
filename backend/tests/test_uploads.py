@@ -17,11 +17,24 @@ def client(tmp_path, monkeypatch) -> TestClient:
 
 
 def _create_workspace(client: TestClient, name: str = "Company X") -> str:
-    response = client.post(
-        "/workspaces",
-        data={"name": name, "owner_email": "owner@example.com", "password": "secret"},
-    )
+    response = client.post("/workspaces", data={"name": name})
     return response.json()["slug"]
+
+
+def _register(client: TestClient, email: str = "owner@example.com") -> dict[str, str]:
+    response = client.post(
+        "/auth/register", data={"email": email, "password": "secret"}
+    )
+    token = response.json()["token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _create_owned_workspace(
+    client: TestClient, name: str = "Company X"
+) -> tuple[str, dict[str, str]]:
+    headers = _register(client)
+    response = client.post("/workspaces", data={"name": name}, headers=headers)
+    return response.json()["slug"], headers
 
 
 def test_upload_pdf_is_stored(client: TestClient, tmp_path) -> None:
@@ -175,3 +188,50 @@ def test_files_from_different_workspaces_do_not_collide(client: TestClient, tmp_
     path_a = next(tmp_path.rglob(resp_a.json()["filename"]))
     path_b = next(tmp_path.rglob(resp_b.json()["filename"]))
     assert path_a.parent != path_b.parent
+
+
+def test_owner_can_upload_to_their_own_workspace(client: TestClient) -> None:
+    slug, headers = _create_owned_workspace(client)
+
+    response = client.post(
+        f"/w/{slug}/uploads",
+        files={"file": ("report.pdf", b"%PDF-1.4 fake content", "application/pdf")},
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+
+
+def test_anonymous_upload_to_owned_workspace_is_rejected(client: TestClient) -> None:
+    slug, _ = _create_owned_workspace(client)
+
+    response = client.post(
+        f"/w/{slug}/uploads",
+        files={"file": ("report.pdf", b"%PDF-1.4 fake content", "application/pdf")},
+    )
+
+    assert response.status_code == 401
+
+
+def test_non_owner_upload_to_owned_workspace_is_rejected(client: TestClient) -> None:
+    slug, _ = _create_owned_workspace(client)
+    other_headers = _register(client, "other@example.com")
+
+    response = client.post(
+        f"/w/{slug}/uploads",
+        files={"file": ("report.pdf", b"%PDF-1.4 fake content", "application/pdf")},
+        headers=other_headers,
+    )
+
+    assert response.status_code == 403
+
+
+def test_anyone_can_upload_to_ownerless_workspace(client: TestClient) -> None:
+    slug = _create_workspace(client)
+
+    response = client.post(
+        f"/w/{slug}/uploads",
+        files={"file": ("report.pdf", b"%PDF-1.4 fake content", "application/pdf")},
+    )
+
+    assert response.status_code == 201

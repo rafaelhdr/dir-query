@@ -42,12 +42,7 @@ class _StubNode:
 
 async def _seed_workspace_with_chunk() -> int:
     async with async_session_factory() as session:
-        workspace = Workspace(
-            name="Company X",
-            slug="company-x",
-            owner_email="owner@example.com",
-            password="irrelevant",
-        )
+        workspace = Workspace(name="Company X", slug="company-x")
         session.add(workspace)
         await session.flush()
 
@@ -70,12 +65,7 @@ async def _seed_workspace_with_chunk() -> int:
 
 async def _seed_empty_workspace() -> int:
     async with async_session_factory() as session:
-        workspace = Workspace(
-            name="Empty Co",
-            slug="empty-co",
-            owner_email="owner@example.com",
-            password="irrelevant",
-        )
+        workspace = Workspace(name="Empty Co", slug="empty-co")
         session.add(workspace)
         await session.commit()
         await session.refresh(workspace)

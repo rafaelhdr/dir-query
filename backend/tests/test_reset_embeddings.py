@@ -19,12 +19,7 @@ class _StubEmbedModel:
 
 async def _seed_chunk() -> int:
     async with async_session_factory() as session:
-        workspace = Workspace(
-            name="Company X",
-            slug="company-x",
-            owner_email="owner@example.com",
-            password="irrelevant",
-        )
+        workspace = Workspace(name="Company X", slug="company-x")
         session.add(workspace)
         await session.flush()
 

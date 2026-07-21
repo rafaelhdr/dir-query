@@ -26,19 +26,39 @@ def client(tmp_path, monkeypatch) -> TestClient:
 
 
 def _create_workspace(client: TestClient, name: str = "Company X") -> str:
-    response = client.post(
-        "/workspaces",
-        data={"name": name, "owner_email": "owner@example.com", "password": "secret"},
-    )
+    response = client.post("/workspaces", data={"name": name})
     return response.json()["slug"]
 
 
-def _upload(client: TestClient, slug: str, filename: str = "report.pdf", name: str | None = None):
+def _register(client: TestClient, email: str = "owner@example.com") -> dict[str, str]:
+    response = client.post(
+        "/auth/register", data={"email": email, "password": "secret"}
+    )
+    token = response.json()["token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _create_owned_workspace(
+    client: TestClient, name: str = "Company X"
+) -> tuple[str, dict[str, str]]:
+    headers = _register(client)
+    response = client.post("/workspaces", data={"name": name}, headers=headers)
+    return response.json()["slug"], headers
+
+
+def _upload(
+    client: TestClient,
+    slug: str,
+    filename: str = "report.pdf",
+    name: str | None = None,
+    headers: dict[str, str] | None = None,
+):
     data = {"name": name} if name else {}
     return client.post(
         f"/w/{slug}/uploads",
         files={"file": (filename, b"%PDF-1.4 fake content", "application/pdf")},
         data=data,
+        headers=headers,
     )
 
 
@@ -121,3 +141,58 @@ def test_delete_file_from_wrong_workspace_returns_404(client: TestClient) -> Non
 
     assert response.status_code == 404
     assert len(client.get(f"/w/{slug_a}/files").json()["data"]) == 1
+
+
+def test_owner_can_delete_a_file_in_their_own_workspace(client: TestClient) -> None:
+    slug, headers = _create_owned_workspace(client)
+    _upload(client, slug, headers=headers)
+    file_id = client.get(f"/w/{slug}/files").json()["data"][0]["id"]
+
+    response = client.delete(f"/w/{slug}/files/{file_id}", headers=headers)
+
+    assert response.status_code == 204
+
+
+def test_anonymous_delete_from_owned_workspace_is_rejected(client: TestClient) -> None:
+    slug, headers = _create_owned_workspace(client)
+    _upload(client, slug, headers=headers)
+    file_id = client.get(f"/w/{slug}/files").json()["data"][0]["id"]
+
+    response = client.delete(f"/w/{slug}/files/{file_id}")
+
+    assert response.status_code == 401
+    assert len(client.get(f"/w/{slug}/files").json()["data"]) == 1
+
+
+def test_non_owner_delete_from_owned_workspace_is_rejected(client: TestClient) -> None:
+    slug, headers = _create_owned_workspace(client)
+    _upload(client, slug, headers=headers)
+    file_id = client.get(f"/w/{slug}/files").json()["data"][0]["id"]
+    other_headers = _register(client, "other@example.com")
+
+    response = client.delete(f"/w/{slug}/files/{file_id}", headers=other_headers)
+
+    assert response.status_code == 403
+    assert len(client.get(f"/w/{slug}/files").json()["data"]) == 1
+
+
+def test_anyone_can_delete_from_ownerless_workspace(client: TestClient) -> None:
+    slug = _create_workspace(client)
+    _upload(client, slug)
+    file_id = client.get(f"/w/{slug}/files").json()["data"][0]["id"]
+
+    response = client.delete(f"/w/{slug}/files/{file_id}")
+
+    assert response.status_code == 204
+
+
+def test_listing_files_is_unrestricted_regardless_of_ownership(
+    client: TestClient,
+) -> None:
+    slug, headers = _create_owned_workspace(client)
+    _upload(client, slug, headers=headers)
+
+    response = client.get(f"/w/{slug}/files")
+
+    assert response.status_code == 200
+    assert len(response.json()["data"]) == 1

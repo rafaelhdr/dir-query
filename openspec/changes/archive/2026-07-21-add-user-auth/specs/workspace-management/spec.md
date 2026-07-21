@@ -1,14 +1,4 @@
-## Purpose
-
-The workspace-management capability lets users create and browse
-workspaces — the unit of isolation that separates groups of documents
-(e.g. per person or company). A workspace has a name and a URL-safe
-slug derived from that name. Ownership is optional: a workspace
-created by a logged-in user (see the `user-auth` capability) is owned
-by that user and only they can edit it; a workspace created without
-logging in has no owner and stays fully public and editable by anyone.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: A user can create a workspace
 The system SHALL serve a page at `/workspaces/new` with a field for a
@@ -42,6 +32,29 @@ with no owner.
 - **THEN** the backend responds with a clear validation error and does
   not create a workspace
 
+## REMOVED Requirements
+
+### Requirement: Workspace owner email is not exposed publicly
+**Reason**: `workspaces.owner_email` is removed. Ownership is now
+tracked via a link to a `users` account, and API responses expose only
+whether the current requester can edit the workspace, never who owns
+it — see the new "Workspace responses reveal editability, not owner
+identity" requirement.
+**Migration**: No data migration; `owner_email` is dropped from the
+`workspaces` table. Any external consumer that relied on this field
+being absent (it always was) is unaffected.
+
+### Requirement: Workspace passwords are stored hashed
+**Reason**: Per-workspace passwords are removed entirely — they were
+never verified by any endpoint. Access to add/remove workspace content
+is now controlled by user-account ownership (see the `user-auth`
+capability), not a workspace-level password.
+**Migration**: `workspaces.password` is dropped from the table.
+Existing hashed values are discarded; nothing reads or verifies them
+today.
+
+## ADDED Requirements
+
 ### Requirement: Workspace responses reveal editability, not owner identity
 The system SHALL include a computed `can_edit` boolean on every
 workspace returned from the workspace list and workspace detail
@@ -70,20 +83,3 @@ id, email, or any other identifying field) in these responses.
   anyone
 - **THEN** the response body does not include the owning user's id,
   email, or any other identifying field
-
-### Requirement: A user can browse existing workspaces
-The system SHALL serve a page at `/workspaces` listing existing
-workspaces by name, most recently created first, each linking to that
-workspace, and linking to `/workspaces/new` to create another.
-
-#### Scenario: Listing existing workspaces
-- **WHEN** a user navigates to `/workspaces`
-- **THEN** the page loads successfully and displays every existing
-  workspace's name with a link into that workspace, ordered from most
-  to least recently created
-
-#### Scenario: No workspaces exist yet
-- **WHEN** a user navigates to `/workspaces` before any workspace has been
-  created
-- **THEN** the page loads successfully and indicates there are no
-  workspaces yet, with a link to create one

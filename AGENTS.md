@@ -67,6 +67,17 @@ Without a required credential configured, uploads/indexing or `/ask` (as
 applicable) return a clear configuration error instead of crashing the
 backend.
 
+### JWT signing key (user login)
+
+Registration and login sign a JWT with `JWT_SECRET_KEY`, supplied the
+same way as the LLM/embedding credentials above: **Recommended**:
+`cp secrets/jwt_secret_key.txt.example secrets/jwt_secret_key.txt` and
+put a long random string in that file. **Fallback**: set
+`JWT_SECRET_KEY` in `.env` instead. Like the credentials above, a
+missing key doesn't crash the backend — `/auth/register` and
+`/auth/login` (and any endpoint that verifies a token) return a clear
+configuration error instead.
+
 `GEMINI_LLM_MODEL` (default `gemini-3-flash-preview`) and
 `GEMINI_EMBED_MODEL` (default `gemini-embedding-001`) override the specific
 Gemini models used, mirroring `MINIMAX_LLM_MODEL`. Google's currently

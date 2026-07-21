@@ -1,30 +1,38 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <!--#set var="page_title" value="New Workspace — Dir Query" -->
+    <!--#set var="page_title" value="Register — Dir Query" -->
     <!--#include virtual="/partials/head.html" -->
   </head>
   <body>
     <!--#include virtual="/partials/nav.html" -->
 
-    <!--#set var="page_heading" value="New Workspace" -->
+    <!--#set var="page_heading" value="Register" -->
     <!--#include virtual="/partials/heading.html" -->
 
     <div id="form-error"></div>
 
-    <form id="new-workspace-form" hx-post="/api/workspaces" hx-swap="none">
+    <form id="register-form" hx-post="/api/auth/register" hx-swap="none">
       <p>
         <label>
-          Name
-          <input type="text" name="name" required />
+          Email
+          <input type="email" name="email" required />
         </label>
       </p>
-      <button type="submit">Create workspace</button>
+      <p>
+        <label>
+          Password
+          <input type="password" name="password" required />
+        </label>
+      </p>
+      <button type="submit">Register</button>
     </form>
+
+    <p><a href="/login">Already have an account? Log in</a></p>
 
     <script>
       document
-        .getElementById("new-workspace-form")
+        .getElementById("register-form")
         .addEventListener("htmx:afterRequest", function (evt) {
           const errorEl = document.getElementById("form-error");
           errorEl.textContent = "";
@@ -38,7 +46,8 @@
           }
 
           if (evt.detail.successful) {
-            window.location = "/w/" + data.slug + "/ask";
+            Auth.setSession(data.token, data.email);
+            window.location = "/workspaces";
           } else {
             errorEl.textContent = data.detail || evt.detail.xhr.response;
           }

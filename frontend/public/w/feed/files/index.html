@@ -43,11 +43,12 @@
     <script>
       const slug = window.location.pathname.split("/")[2];
       const workspaceNameEl = document.getElementById("workspace-name");
+      let canEdit = false;
       workspaceNameEl.textContent = slug;
       document.getElementById("tab-ask").href = "/w/" + slug + "/ask";
       document.getElementById("tab-files").href = "/w/" + slug + "/feed/files";
 
-      fetch("/api/workspaces/" + slug)
+      Auth.fetch("/api/workspaces/" + slug)
         .then(async function (response) {
           if (!response.ok) {
             workspaceNameEl.textContent = "Workspace not found";
@@ -55,6 +56,9 @@
           }
           const workspace = await response.json();
           workspaceNameEl.textContent = workspace.name;
+          canEdit = workspace.can_edit;
+          document.getElementById("add-content").hidden = !canEdit;
+          loadFiles();
         })
         .catch(function () {
           workspaceNameEl.textContent = "Workspace not found";
@@ -97,13 +101,15 @@
           tr.appendChild(statusTd);
 
           const deleteTd = document.createElement("td");
-          const deleteButton = document.createElement("button");
-          deleteButton.type = "button";
-          deleteButton.textContent = "Delete";
-          deleteButton.addEventListener("click", function () {
-            deleteFile(file.id);
-          });
-          deleteTd.appendChild(deleteButton);
+          if (canEdit) {
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.textContent = "Delete";
+            deleteButton.addEventListener("click", function () {
+              deleteFile(file.id);
+            });
+            deleteTd.appendChild(deleteButton);
+          }
           tr.appendChild(deleteTd);
 
           tbody.appendChild(tr);
@@ -111,7 +117,7 @@
       }
 
       function loadFiles() {
-        return fetch("/api/w/" + slug + "/files")
+        return Auth.fetch("/api/w/" + slug + "/files")
           .then(async function (response) {
             if (!response.ok) {
               renderFiles([]);
@@ -126,9 +132,11 @@
       }
 
       function deleteFile(fileId) {
-        fetch("/api/w/" + slug + "/files/" + fileId, { method: "DELETE" }).then(function () {
-          loadFiles();
-        });
+        Auth.fetch("/api/w/" + slug + "/files/" + fileId, { method: "DELETE" }).then(
+          function () {
+            loadFiles();
+          }
+        );
       }
 
       document.getElementById("refresh-button").addEventListener("click", loadFiles);
@@ -139,7 +147,7 @@
         resultEl.textContent = "";
 
         const formData = new FormData(evt.target);
-        const response = await fetch("/api/w/" + slug + "/uploads", {
+        const response = await Auth.fetch("/api/w/" + slug + "/uploads", {
           method: "POST",
           body: formData,
         });
@@ -159,8 +167,6 @@
           resultEl.textContent = data.detail || response.statusText;
         }
       });
-
-      loadFiles();
     </script>
   </body>
 </html>

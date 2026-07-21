@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import ask, conversations, files, health, uploads, workspaces
+from app.api import ask, auth, conversations, files, health, uploads, workspaces
 from app.rag import index_service
 
 
@@ -20,6 +20,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(health.router)
+    app.include_router(auth.router)
     app.include_router(uploads.router)
     app.include_router(files.router)
     app.include_router(ask.router)

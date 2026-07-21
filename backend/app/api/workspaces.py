@@ -1,29 +1,38 @@
 from fastapi import APIRouter, Depends, Form, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Workspace
+from app.api.deps import get_current_user_optional
+from app.db.models import User, Workspace
 from app.db.session import get_session
 from app.services.slug import slugify
 
 router = APIRouter()
 
 
-def _workspace_public(workspace: Workspace) -> dict[str, object]:
+def _can_edit(workspace: Workspace, current_user: User | None) -> bool:
+    return workspace.owner_user_id is None or (
+        current_user is not None and current_user.id == workspace.owner_user_id
+    )
+
+
+def _workspace_public(
+    workspace: Workspace, current_user: User | None
+) -> dict[str, object]:
     return {
         "id": workspace.id,
         "name": workspace.name,
         "slug": workspace.slug,
         "created_at": workspace.created_at.isoformat(),
+        "can_edit": _can_edit(workspace, current_user),
     }
 
 
 @router.post("/workspaces", status_code=status.HTTP_201_CREATED)
 async def create_workspace(
     name: str = Form(..., min_length=1),
-    owner_email: str = Form(..., min_length=1),
-    password: str = Form(..., min_length=1),
+    current_user: User | None = Depends(get_current_user_optional),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, object]:
     slug = slugify(name)
@@ -36,8 +45,7 @@ async def create_workspace(
     workspace = Workspace(
         name=name,
         slug=slug,
-        owner_email=owner_email,
-        password=func.crypt(password, func.gen_salt("bf")),
+        owner_user_id=current_user.id if current_user else None,
     )
     session.add(workspace)
     try:
@@ -50,20 +58,26 @@ async def create_workspace(
         ) from exc
 
     await session.refresh(workspace)
-    return _workspace_public(workspace)
+    return _workspace_public(workspace, current_user)
 
 
 @router.get("/workspaces")
 async def list_workspaces(
+    current_user: User | None = Depends(get_current_user_optional),
     session: AsyncSession = Depends(get_session),
 ) -> list[dict[str, object]]:
     result = await session.execute(select(Workspace).order_by(Workspace.created_at.desc()))
-    return [_workspace_public(workspace) for workspace in result.scalars().all()]
+    return [
+        _workspace_public(workspace, current_user)
+        for workspace in result.scalars().all()
+    ]
 
 
 @router.get("/workspaces/{slug}")
 async def get_workspace(
-    slug: str, session: AsyncSession = Depends(get_session)
+    slug: str,
+    current_user: User | None = Depends(get_current_user_optional),
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, object]:
     result = await session.execute(select(Workspace).where(Workspace.slug == slug))
     workspace = result.scalar_one_or_none()
@@ -71,4 +85,4 @@ async def get_workspace(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
         )
-    return _workspace_public(workspace)
+    return _workspace_public(workspace, current_user)

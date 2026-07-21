@@ -1,5 +1,37 @@
     <nav>
       <a href="/home">Home</a>
       <a href="/workspaces">Workspaces</a>
+      <span id="nav-auth"></span>
       <span class="beta-badge">Beta</span>
     </nav>
+    <script>
+      (function () {
+        var el = document.getElementById("nav-auth");
+
+        if (Auth.isLoggedIn()) {
+          var emailSpan = document.createElement("span");
+          emailSpan.textContent = Auth.getEmail();
+          el.appendChild(emailSpan);
+
+          var logoutLink = document.createElement("a");
+          logoutLink.href = "#";
+          logoutLink.textContent = "Logout";
+          logoutLink.addEventListener("click", function (evt) {
+            evt.preventDefault();
+            Auth.clearSession();
+            window.location.reload();
+          });
+          el.appendChild(logoutLink);
+        } else {
+          var loginLink = document.createElement("a");
+          loginLink.href = "/login";
+          loginLink.textContent = "Login";
+          el.appendChild(loginLink);
+
+          var registerLink = document.createElement("a");
+          registerLink.href = "/register";
+          registerLink.textContent = "Register";
+          el.appendChild(registerLink);
+        }
+      })();
+    </script>

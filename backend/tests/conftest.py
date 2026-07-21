@@ -32,8 +32,8 @@ def _clean_database():
         async with engine.begin() as conn:
             await conn.execute(
                 text(
-                    "TRUNCATE workspaces, files, chunks, conversations, exchanges "
-                    "RESTART IDENTITY CASCADE"
+                    "TRUNCATE workspaces, files, chunks, conversations, exchanges, "
+                    "users RESTART IDENTITY CASCADE"
                 )
             )
 

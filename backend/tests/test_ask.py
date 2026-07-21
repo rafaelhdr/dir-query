@@ -18,7 +18,7 @@ def client() -> TestClient:
 def _create_workspace(client: TestClient, name: str = "Company X") -> str:
     response = client.post(
         "/workspaces",
-        data={"name": name, "owner_email": "owner@example.com", "password": "secret"},
+        data={"name": name},
     )
     return response.json()["slug"]
 
