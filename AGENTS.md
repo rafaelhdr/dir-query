@@ -183,6 +183,15 @@ workflow.
 
 - Python: type-annotated, formatted per standard FastAPI idioms. Prefer small,
   focused `APIRouter`s over one large router file.
+- API responses: define a Pydantic `BaseModel` in `backend/app/schemas.py` for
+  every route's response shape and use it as the route's return-type
+  annotation (FastAPI infers `response_model` from it), instead of returning
+  a raw `dict`. This gets response validation/filtering and an accurate
+  OpenAPI schema in `/docs` for free. Build the model with explicit keyword
+  arguments from named ORM attributes (never `model_validate`/
+  `from_attributes` on the ORM object directly) so fields that must never be
+  exposed (e.g. a workspace's `owner_user_id`) can't leak just because a new
+  column gets added to the model later.
 - Tests: one test module per API router/feature area, using the `TestClient`
   fixture in `backend/tests/conftest.py`.
 - No database, auth, or background workers are set up yet — introduce them

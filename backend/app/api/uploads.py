@@ -19,6 +19,7 @@ from app.config import MAX_UPLOAD_BYTES, UPLOAD_DIR
 from app.db.models import File, Workspace
 from app.db.session import get_session
 from app.rag import index_service
+from app.schemas import UploadPublic
 
 router = APIRouter()
 
@@ -36,7 +37,7 @@ async def create_upload(
     name: str | None = Form(None),
     workspace: Workspace = Depends(require_workspace_edit_access),
     session: AsyncSession = Depends(get_session),
-) -> dict[str, str | int]:
+) -> UploadPublic:
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -110,9 +111,9 @@ async def create_upload(
 
     background_tasks.add_task(index_service.index_uploaded_file, db_file.id, stored_path)
 
-    return {
-        "filename": stored_filename,
-        "display_name": display_name,
-        "original_filename": original_filename,
-        "size": len(contents),
-    }
+    return UploadPublic(
+        filename=stored_filename,
+        display_name=display_name,
+        original_filename=original_filename,
+        size=len(contents),
+    )

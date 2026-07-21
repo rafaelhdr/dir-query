@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user_optional
 from app.db.models import User, Workspace
 from app.db.session import get_session
+from app.schemas import WorkspacePublic
 from app.services.slug import slugify
 
 router = APIRouter()
@@ -19,14 +20,14 @@ def _can_edit(workspace: Workspace, current_user: User | None) -> bool:
 
 def _workspace_public(
     workspace: Workspace, current_user: User | None
-) -> dict[str, object]:
-    return {
-        "id": workspace.id,
-        "name": workspace.name,
-        "slug": workspace.slug,
-        "created_at": workspace.created_at.isoformat(),
-        "can_edit": _can_edit(workspace, current_user),
-    }
+) -> WorkspacePublic:
+    return WorkspacePublic(
+        id=workspace.id,
+        name=workspace.name,
+        slug=workspace.slug,
+        created_at=workspace.created_at,
+        can_edit=_can_edit(workspace, current_user),
+    )
 
 
 @router.post("/workspaces", status_code=status.HTTP_201_CREATED)
@@ -34,7 +35,7 @@ async def create_workspace(
     name: str = Form(..., min_length=1),
     current_user: User | None = Depends(get_current_user_optional),
     session: AsyncSession = Depends(get_session),
-) -> dict[str, object]:
+) -> WorkspacePublic:
     slug = slugify(name)
     if not slug:
         raise HTTPException(
@@ -65,7 +66,7 @@ async def create_workspace(
 async def list_workspaces(
     current_user: User | None = Depends(get_current_user_optional),
     session: AsyncSession = Depends(get_session),
-) -> list[dict[str, object]]:
+) -> list[WorkspacePublic]:
     result = await session.execute(select(Workspace).order_by(Workspace.created_at.desc()))
     return [
         _workspace_public(workspace, current_user)
@@ -78,7 +79,7 @@ async def get_workspace(
     slug: str,
     current_user: User | None = Depends(get_current_user_optional),
     session: AsyncSession = Depends(get_session),
-) -> dict[str, object]:
+) -> WorkspacePublic:
     result = await session.execute(select(Workspace).where(Workspace.slug == slug))
     workspace = result.scalar_one_or_none()
     if workspace is None:

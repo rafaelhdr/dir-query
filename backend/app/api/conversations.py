@@ -5,27 +5,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_workspace_by_slug
 from app.db.models import Conversation, Exchange, Workspace
 from app.db.session import get_session
+from app.schemas import ConversationDetail, ConversationPublic, ExchangePublic
 
 router = APIRouter()
 
 
-def _conversation_public(conversation: Conversation) -> dict[str, object]:
-    return {
-        "id": conversation.id,
-        "title": conversation.title,
-        "created_at": conversation.created_at.isoformat(),
-    }
+def _conversation_public(conversation: Conversation) -> ConversationPublic:
+    return ConversationPublic(
+        id=conversation.id,
+        title=conversation.title,
+        created_at=conversation.created_at,
+    )
 
 
-def _exchange_public(exchange: Exchange) -> dict[str, object]:
-    return {
-        "id": exchange.id,
-        "question": exchange.question,
-        "answer": exchange.answer,
-        "sources": exchange.sources,
-        "status": exchange.status,
-        "created_at": exchange.created_at.isoformat(),
-    }
+def _exchange_public(exchange: Exchange) -> ExchangePublic:
+    return ExchangePublic(
+        id=exchange.id,
+        question=exchange.question,
+        answer=exchange.answer,
+        sources=exchange.sources,
+        status=exchange.status,
+        created_at=exchange.created_at,
+    )
 
 
 async def _get_workspace_conversation(
@@ -49,7 +50,7 @@ async def _get_workspace_conversation(
 async def list_conversations(
     workspace: Workspace = Depends(get_workspace_by_slug),
     session: AsyncSession = Depends(get_session),
-) -> dict[str, list[dict[str, object]]]:
+) -> dict[str, list[ConversationPublic]]:
     last_activity = (
         select(
             Exchange.conversation_id,
@@ -73,7 +74,7 @@ async def get_conversation(
     conversation_id: int,
     workspace: Workspace = Depends(get_workspace_by_slug),
     session: AsyncSession = Depends(get_session),
-) -> dict[str, object]:
+) -> ConversationDetail:
     conversation = await _get_workspace_conversation(workspace, conversation_id, session)
 
     result = await session.execute(
@@ -82,7 +83,7 @@ async def get_conversation(
         .order_by(Exchange.created_at.asc())
     )
 
-    return {
-        **_conversation_public(conversation),
-        "exchanges": [_exchange_public(e) for e in result.scalars().all()],
-    }
+    return ConversationDetail(
+        **_conversation_public(conversation).model_dump(),
+        exchanges=[_exchange_public(e) for e in result.scalars().all()],
+    )

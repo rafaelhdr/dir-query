@@ -31,3 +31,6 @@ secrets/*
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Worktrunk worktrees
+.worktrees/

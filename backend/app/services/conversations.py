@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.db.models import Conversation, Exchange
 from app.db.session import async_session_factory
 from app.rag import index_service
+from app.schemas import AskResponse
 
 TITLE_MAX_LENGTH = 60
 
@@ -20,7 +21,7 @@ def _derive_title(question: str) -> str:
 
 async def ask(
     workspace_id: int, question: str, conversation_id: int | None
-) -> dict[str, object]:
+) -> AskResponse:
     async with async_session_factory() as session:
         if conversation_id is None:
             conversation = Conversation(
@@ -74,9 +75,9 @@ async def ask(
         exchange.status = "answered"
         await session.commit()
 
-    return {
-        "conversation_id": conversation_id,
-        "title": title,
-        "answer": result["answer"],
-        "sources": result["sources"],
-    }
+    return AskResponse(
+        conversation_id=conversation_id,
+        title=title,
+        answer=result["answer"],
+        sources=result["sources"],
+    )

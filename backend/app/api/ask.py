@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, status
 
 from app.api.deps import get_workspace_by_slug
 from app.db.models import Workspace
+from app.schemas import AskResponse
 from app.services import conversations
 from app.services.conversations import ConversationNotFoundError
 
@@ -17,7 +18,7 @@ async def ask_question(
     question: str = Form(...),
     conversation_id: int | None = Form(None),
     workspace: Workspace = Depends(get_workspace_by_slug),
-) -> dict[str, object]:
+) -> AskResponse:
     try:
         return await conversations.ask(workspace.id, question, conversation_id)
     except ConversationNotFoundError as exc:

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User
 from app.db.session import get_session
+from app.schemas import TokenResponse
 from app.services.auth import authenticate, create_access_token, hash_password_expr
 
 router = APIRouter(prefix="/auth")
@@ -11,8 +12,8 @@ router = APIRouter(prefix="/auth")
 _INVALID_CREDENTIALS_DETAIL = "Invalid email or password"
 
 
-def _token_response(user: User) -> dict[str, object]:
-    return {"token": create_access_token(user.id), "email": user.email}
+def _token_response(user: User) -> TokenResponse:
+    return TokenResponse(token=create_access_token(user.id), email=user.email)
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -20,7 +21,7 @@ async def register(
     email: str = Form(..., min_length=1),
     password: str = Form(..., min_length=1),
     session: AsyncSession = Depends(get_session),
-) -> dict[str, object]:
+) -> TokenResponse:
     user = User(email=email.strip().lower(), password=hash_password_expr(password))
     session.add(user)
     try:
@@ -40,7 +41,7 @@ async def login(
     email: str = Form(..., min_length=1),
     password: str = Form(..., min_length=1),
     session: AsyncSession = Depends(get_session),
-) -> dict[str, object]:
+) -> TokenResponse:
     user = await authenticate(session, email, password)
     if user is None:
         raise HTTPException(

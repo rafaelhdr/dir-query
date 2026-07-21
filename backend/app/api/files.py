@@ -6,19 +6,20 @@ from app.api.deps import get_workspace_by_slug, require_workspace_edit_access
 from app.config import UPLOAD_DIR
 from app.db.models import File, Workspace
 from app.db.session import get_session
+from app.schemas import FilePublic
 
 router = APIRouter()
 
 
-def _file_public(file: File) -> dict[str, object]:
-    return {
-        "id": file.id,
-        "display_name": file.display_name,
-        "original_filename": file.original_filename,
-        "status": file.status,
-        "uploaded_at": file.uploaded_at.isoformat(),
-        "url": f"/files/{file.workspace_id}/{file.filename}",
-    }
+def _file_public(file: File) -> FilePublic:
+    return FilePublic(
+        id=file.id,
+        display_name=file.display_name,
+        original_filename=file.original_filename,
+        status=file.status,
+        uploaded_at=file.uploaded_at,
+        url=f"/files/{file.workspace_id}/{file.filename}",
+    )
 
 
 async def _get_workspace_file(
@@ -39,7 +40,7 @@ async def _get_workspace_file(
 async def list_files(
     workspace: Workspace = Depends(get_workspace_by_slug),
     session: AsyncSession = Depends(get_session),
-) -> dict[str, list[dict[str, object]]]:
+) -> dict[str, list[FilePublic]]:
     result = await session.execute(
         select(File)
         .where(File.workspace_id == workspace.id)
