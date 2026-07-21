@@ -180,7 +180,7 @@ selected tab.
   selected and the "Ask" tab is not
 
 ### Requirement: Uploading to an owned workspace requires the owner's session
-The system SHALL restrict `POST /w/<slug>/uploads` to the workspace's
+The system SHALL restrict `POST /w/<slug>/files` to the workspace's
 owner when that workspace has one: the request MUST carry a valid
 bearer token belonging to the owning user, or the backend SHALL reject
 it without persisting the file. Uploads to a workspace with no owner

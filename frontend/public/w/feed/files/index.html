@@ -147,7 +147,7 @@
         resultEl.textContent = "";
 
         const formData = new FormData(evt.target);
-        const response = await Auth.fetch("/api/w/" + slug + "/uploads", {
+        const response = await Auth.fetch("/api/w/" + slug + "/files", {
           method: "POST",
           body: formData,
         });
