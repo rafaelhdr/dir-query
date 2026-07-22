@@ -1,4 +1,11 @@
+import asyncio
+
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+
+from app.db.models import Workspace
+from app.db.session import async_session_factory
+from app.services import crypto
 
 
 def _register(client: TestClient, email: str = "owner@example.com") -> dict[str, str]:
@@ -160,3 +167,154 @@ def test_owner_identity_never_appears_in_responses(client: TestClient) -> None:
         assert "owner_user_id" not in body
         assert "owner_email" not in body
         assert "owner" not in body
+
+
+def test_create_workspace_with_description(client: TestClient) -> None:
+    response = client.post(
+        "/workspaces", data={"name": "Company X", "description": "Legal docs"}
+    )
+
+    assert response.status_code == 201
+    assert response.json()["description"] == "Legal docs"
+
+
+def test_create_workspace_without_description_defaults_to_empty(
+    client: TestClient,
+) -> None:
+    response = client.post("/workspaces", data={"name": "Company X"})
+
+    assert response.status_code == 201
+    assert response.json()["description"] == ""
+
+
+def test_create_workspace_defaults_to_system_key(client: TestClient) -> None:
+    response = client.post("/workspaces", data={"name": "Company X"})
+
+    assert response.status_code == 201
+    assert response.json()["key_source"] == "system"
+    assert response.json()["key_provider"] is None
+
+
+def test_create_workspace_with_dedicated_key(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(crypto, "WORKSPACE_KEY_ENCRYPTION_SECRET", "test-secret")
+
+    response = client.post(
+        "/workspaces",
+        data={
+            "name": "Company X",
+            "key_source": "dedicated",
+            "key_provider": "gemini",
+            "api_key": "my-gemini-key",
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["key_source"] == "dedicated"
+    assert body["key_provider"] == "gemini"
+
+
+def test_create_workspace_dedicated_without_credential_is_rejected(
+    client: TestClient, monkeypatch
+) -> None:
+    monkeypatch.setattr(crypto, "WORKSPACE_KEY_ENCRYPTION_SECRET", "test-secret")
+
+    response = client.post(
+        "/workspaces",
+        data={"name": "Company X", "key_source": "dedicated", "key_provider": "gemini"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_create_workspace_dedicated_without_provider_is_rejected(
+    client: TestClient, monkeypatch
+) -> None:
+    monkeypatch.setattr(crypto, "WORKSPACE_KEY_ENCRYPTION_SECRET", "test-secret")
+
+    response = client.post(
+        "/workspaces",
+        data={"name": "Company X", "key_source": "dedicated", "api_key": "my-key"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_owner_sees_key_configuration(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(crypto, "WORKSPACE_KEY_ENCRYPTION_SECRET", "test-secret")
+    headers = _register(client)
+    client.post(
+        "/workspaces",
+        data={
+            "name": "Company X",
+            "key_source": "dedicated",
+            "key_provider": "minimax",
+            "api_key": "my-minimax-key",
+        },
+        headers=headers,
+    )
+
+    response = client.get("/workspaces/company-x", headers=headers)
+
+    body = response.json()
+    assert body["key_source"] == "dedicated"
+    assert body["key_provider"] == "minimax"
+
+
+def test_non_owner_does_not_see_key_configuration(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(crypto, "WORKSPACE_KEY_ENCRYPTION_SECRET", "test-secret")
+    owner_headers = _register(client, "owner@example.com")
+    other_headers = _register(client, "other@example.com")
+    client.post(
+        "/workspaces",
+        data={
+            "name": "Company X",
+            "key_source": "dedicated",
+            "key_provider": "minimax",
+            "api_key": "my-minimax-key",
+        },
+        headers=owner_headers,
+    )
+
+    response = client.get("/workspaces/company-x", headers=other_headers)
+
+    body = response.json()
+    assert body["key_source"] is None
+    assert body["key_provider"] is None
+
+
+def test_dedicated_api_key_is_encrypted_and_never_returned(
+    client: TestClient, monkeypatch
+) -> None:
+    monkeypatch.setattr(crypto, "WORKSPACE_KEY_ENCRYPTION_SECRET", "test-secret")
+    headers = _register(client)
+
+    response = client.post(
+        "/workspaces",
+        data={
+            "name": "Company X",
+            "key_source": "dedicated",
+            "key_provider": "gemini",
+            "api_key": "super-secret-key",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201
+    assert "super-secret-key" not in response.text
+
+    list_response = client.get("/workspaces", headers=headers)
+    detail_response = client.get("/workspaces/company-x", headers=headers)
+    assert "super-secret-key" not in list_response.text
+    assert "super-secret-key" not in detail_response.text
+
+    async def _fetch_encrypted_key() -> str | None:
+        async with async_session_factory() as session:
+            result = await session.execute(
+                select(Workspace.encrypted_api_key).where(Workspace.slug == "company-x")
+            )
+            return result.scalar_one()
+
+    encrypted = asyncio.run(_fetch_encrypted_key())
+    assert encrypted is not None
+    assert encrypted != "super-secret-key"
+    assert crypto.decrypt(encrypted) == "super-secret-key"

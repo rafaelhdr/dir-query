@@ -104,6 +104,22 @@ missing key doesn't crash the backend — `/auth/register` and
 `/auth/login` (and any endpoint that verifies a token) return a clear
 configuration error instead.
 
+### Workspace dedicated LLM key encryption
+
+A workspace can be created with a dedicated LLM API key (Gemini or MiniMax)
+instead of using the backend's shared credentials — see the
+`workspace-llm-key-selection` capability. That key is encrypted before it's
+stored, using `WORKSPACE_KEY_ENCRYPTION_SECRET`, supplied the same way as
+the credentials above: **Recommended**: `cp
+secrets/workspace_key_encryption_secret.txt.example
+secrets/workspace_key_encryption_secret.txt` and put a long random string
+in that file. **Fallback**: set `WORKSPACE_KEY_ENCRYPTION_SECRET` in `.env`
+instead. This secret is intentionally separate from `JWT_SECRET_KEY` —
+rotating one must not affect the other. If it's missing, creating a
+workspace with a dedicated key returns a clear configuration error instead
+of crashing the backend; losing or rotating it makes previously stored
+dedicated keys permanently undecryptable.
+
 `GEMINI_LLM_MODEL` (default `gemini-3-flash-preview`) and
 `GEMINI_EMBED_MODEL` (default `gemini-embedding-001`) override the specific
 Gemini models used, mirroring `MINIMAX_LLM_MODEL`. Google's currently

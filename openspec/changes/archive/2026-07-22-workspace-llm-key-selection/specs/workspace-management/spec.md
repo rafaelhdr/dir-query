@@ -1,14 +1,4 @@
-## Purpose
-
-The workspace-management capability lets users create and browse
-workspaces — the unit of isolation that separates groups of documents
-(e.g. per person or company). A workspace has a name and a URL-safe
-slug derived from that name. Ownership is optional: a workspace
-created by a logged-in user (see the `user-auth` capability) is owned
-by that user and only they can edit it; a workspace created without
-logging in has no owner and stays fully public and editable by anyone.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: A user can create a workspace
 The system SHALL serve a page at `/workspaces/new` with fields for a
@@ -55,6 +45,8 @@ otherwise the workspace is created with no owner.
 - **THEN** a new workspace is created with an empty description, and
   creation is not blocked by the missing description
 
+## ADDED Requirements
+
 ### Requirement: A workspace's description is shown on the workspaces list
 The system SHALL include each workspace's description in workspace list and
 detail responses, and SHALL render it below that workspace's title on the
@@ -70,49 +62,3 @@ detail responses, and SHALL render it below that workspace's title on the
 - **WHEN** a user navigates to `/workspaces` and a listed workspace has an
   empty description
 - **THEN** that workspace is listed with no description content shown
-
-### Requirement: Workspace responses reveal editability, not owner identity
-The system SHALL include a computed `can_edit` boolean on every
-workspace returned from the workspace list and workspace detail
-endpoints, reflecting whether the current request (based on its own
-optional bearer token, if any) is allowed to add or remove content in
-that workspace. The system SHALL NOT include the owner's identity (user
-id, email, or any other identifying field) in these responses.
-
-#### Scenario: Owner sees can_edit true
-- **WHEN** the user who owns a workspace requests that workspace's
-  details with a valid bearer token
-- **THEN** the response includes `can_edit: true`
-
-#### Scenario: Non-owner sees can_edit false
-- **WHEN** a different authenticated user (not the owner), or an
-  unauthenticated visitor, requests an owned workspace's details
-- **THEN** the response includes `can_edit: false`
-
-#### Scenario: Anyone sees can_edit true for an ownerless workspace
-- **WHEN** any visitor, authenticated or not, requests the details of a
-  workspace that has no owner
-- **THEN** the response includes `can_edit: true`
-
-#### Scenario: Owner identity is never present in the response
-- **WHEN** a workspace is created, listed, or fetched by slug, by
-  anyone
-- **THEN** the response body does not include the owning user's id,
-  email, or any other identifying field
-
-### Requirement: A user can browse existing workspaces
-The system SHALL serve a page at `/workspaces` listing existing
-workspaces by name, most recently created first, each linking to that
-workspace, and linking to `/workspaces/new` to create another.
-
-#### Scenario: Listing existing workspaces
-- **WHEN** a user navigates to `/workspaces`
-- **THEN** the page loads successfully and displays every existing
-  workspace's name with a link into that workspace, ordered from most
-  to least recently created
-
-#### Scenario: No workspaces exist yet
-- **WHEN** a user navigates to `/workspaces` before any workspace has been
-  created
-- **THEN** the page loads successfully and indicates there are no
-  workspaces yet, with a link to create one

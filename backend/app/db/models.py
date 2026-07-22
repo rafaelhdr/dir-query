@@ -6,6 +6,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 FILE_STATUSES = ("pending", "indexed", "failed")
 EXCHANGE_STATUSES = ("pending", "answered", "failed")
+KEY_SOURCES = ("system", "dedicated")
+KEY_PROVIDERS = ("gemini", "minimax")
 
 
 class Base(DeclarativeBase):
@@ -29,9 +31,13 @@ class Workspace(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(nullable=False)
     slug: Mapped[str] = mapped_column(nullable=False, unique=True)
+    description: Mapped[str] = mapped_column(nullable=False, server_default="")
     owner_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    key_source: Mapped[str] = mapped_column(nullable=False, server_default="system")
+    key_provider: Mapped[str | None] = mapped_column(nullable=True)
+    encrypted_api_key: Mapped[str | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now(), nullable=False
     )
@@ -40,6 +46,16 @@ class Workspace(Base):
     files: Mapped[list["File"]] = relationship(back_populates="workspace")
     conversations: Mapped[list["Conversation"]] = relationship(
         back_populates="workspace"
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            f"key_source IN {KEY_SOURCES}", name="workspaces_key_source_check"
+        ),
+        CheckConstraint(
+            f"key_provider IS NULL OR key_provider IN {KEY_PROVIDERS}",
+            name="workspaces_key_provider_check",
+        ),
     )
 
 
@@ -136,6 +152,8 @@ class Exchange(Base):
     answer: Mapped[str | None] = mapped_column(nullable=True)
     sources: Mapped[list[dict[str, str]] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(nullable=False, server_default="pending")
+    llm_key_source: Mapped[str | None] = mapped_column(nullable=True)
+    llm_provider: Mapped[str | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now(), nullable=False
     )
@@ -144,5 +162,13 @@ class Exchange(Base):
 
     __table_args__ = (
         CheckConstraint(f"status IN {EXCHANGE_STATUSES}", name="exchanges_status_check"),
+        CheckConstraint(
+            f"llm_key_source IS NULL OR llm_key_source IN {KEY_SOURCES}",
+            name="exchanges_llm_key_source_check",
+        ),
+        CheckConstraint(
+            f"llm_provider IS NULL OR llm_provider IN {KEY_PROVIDERS}",
+            name="exchanges_llm_provider_check",
+        ),
         Index("ix_exchanges_conversation_id", "conversation_id"),
     )

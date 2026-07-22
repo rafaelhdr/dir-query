@@ -25,8 +25,9 @@ from app.config import (
     MINIMAX_LLM_MODEL,
     UPLOAD_DIR,
 )
-from app.db.models import Chunk, Exchange, File
+from app.db.models import Chunk, Exchange, File, Workspace
 from app.db.session import async_session_factory
+from app.services import crypto
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,15 @@ def _get_embed_model() -> BaseEmbedding:
     return _embed_model
 
 
-def _get_llm() -> LLM:
+def _get_llm(
+    key_source: str, key_provider: str | None, encrypted_api_key: str | None
+) -> LLM:
+    if key_source == "dedicated":
+        api_key = crypto.decrypt(encrypted_api_key or "")
+        if key_provider == "gemini":
+            return GoogleGenAI(model=GEMINI_LLM_MODEL, api_key=api_key)
+        return MiniMax(model=MINIMAX_LLM_MODEL, api_key=api_key)
+
     if LLM_PROVIDER == "gemini":
         if not GOOGLE_API_KEY:
             raise RuntimeError("GOOGLE_API_KEY is not configured")
@@ -152,7 +161,20 @@ async def _load_history_messages(
 async def answer_question(
     workspace_id: int, question: str, conversation_id: int | None = None
 ) -> dict[str, object]:
-    llm = _get_llm()
+    async with async_session_factory() as session:
+        workspace_result = await session.execute(
+            select(
+                Workspace.key_source, Workspace.key_provider, Workspace.encrypted_api_key
+            ).where(Workspace.id == workspace_id)
+        )
+        workspace_row = workspace_result.first()
+
+    key_source, key_provider, encrypted_api_key = (
+        workspace_row if workspace_row is not None else ("system", None, None)
+    )
+    used_provider = key_provider if key_source == "dedicated" else LLM_PROVIDER
+
+    llm = _get_llm(key_source, key_provider, encrypted_api_key)
 
     embed_model = _get_embed_model()
     query_embedding = embed_model.get_query_embedding(question)
@@ -168,7 +190,12 @@ async def answer_question(
         rows = result.all()
 
         if not rows:
-            return {"answer": "No documents have been indexed yet.", "sources": []}
+            return {
+                "answer": "No documents have been indexed yet.",
+                "sources": [],
+                "llm_key_source": key_source,
+                "llm_provider": used_provider,
+            }
 
         history = (
             await _load_history_messages(session, conversation_id)
@@ -209,6 +236,16 @@ async def answer_question(
     answer = _strip_reasoning(str(response.message.content))
 
     if NOT_FOUND_ANSWER.lower() in answer.lower():
-        return {"answer": NOT_FOUND_ANSWER, "sources": []}
+        return {
+            "answer": NOT_FOUND_ANSWER,
+            "sources": [],
+            "llm_key_source": key_source,
+            "llm_provider": used_provider,
+        }
 
-    return {"answer": answer, "sources": sources}
+    return {
+        "answer": answer,
+        "sources": sources,
+        "llm_key_source": key_source,
+        "llm_provider": used_provider,
+    }

@@ -50,6 +50,7 @@ def _read_secret(name: str) -> str | None:
 MINIMAX_API_KEY = _read_secret("MINIMAX_API_KEY")
 GOOGLE_API_KEY = _read_secret("GOOGLE_API_KEY")
 JWT_SECRET_KEY = _read_secret("JWT_SECRET_KEY")
+WORKSPACE_KEY_ENCRYPTION_SECRET = _read_secret("WORKSPACE_KEY_ENCRYPTION_SECRET")
 
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRES_HOURS = 18

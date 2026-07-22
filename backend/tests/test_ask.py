@@ -32,6 +32,19 @@ def _get_exchange_status(exchange_id: int) -> str:
     return asyncio.run(_fetch())
 
 
+def _get_exchange_llm_fields(exchange_id: int) -> tuple[str | None, str | None]:
+    async def _fetch() -> tuple[str | None, str | None]:
+        async with async_session_factory() as session:
+            result = await session.execute(
+                select(Exchange.llm_key_source, Exchange.llm_provider).where(
+                    Exchange.id == exchange_id
+                )
+            )
+            return result.one()
+
+    return asyncio.run(_fetch())
+
+
 def test_answers_question_using_answer_question(client: TestClient, monkeypatch) -> None:
     async def _stub(workspace_id: int, question: str, conversation_id=None) -> dict[str, object]:
         return {
@@ -84,6 +97,38 @@ def test_missing_api_key_returns_clear_error(client: TestClient, monkeypatch) ->
 
     assert response.status_code == 503
     assert "MINIMAX_API_KEY" in response.json()["detail"]
+
+
+def test_answered_exchange_records_llm_key_source_and_provider(
+    client: TestClient, monkeypatch
+) -> None:
+    async def _stub(workspace_id: int, question: str, conversation_id=None) -> dict[str, object]:
+        return {
+            "answer": "The answer is 42.",
+            "sources": [],
+            "llm_key_source": "dedicated",
+            "llm_provider": "gemini",
+        }
+
+    monkeypatch.setattr(
+        ask_module.conversations.index_service, "answer_question", _stub
+    )
+    slug = _create_workspace(client)
+
+    response = client.post(f"/w/{slug}/ask", data={"question": "What is the answer?"})
+    assert response.status_code == 200
+
+    async def _find_exchange_id() -> int:
+        async with async_session_factory() as session:
+            result = await session.execute(
+                select(Exchange).where(Exchange.question == "What is the answer?")
+            )
+            return result.scalar_one().id
+
+    exchange_id = asyncio.run(_find_exchange_id())
+    llm_key_source, llm_provider = _get_exchange_llm_fields(exchange_id)
+    assert llm_key_source == "dedicated"
+    assert llm_provider == "gemini"
 
 
 def test_ask_nonexistent_workspace_returns_404(client: TestClient) -> None:

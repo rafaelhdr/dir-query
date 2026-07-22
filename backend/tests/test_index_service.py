@@ -5,6 +5,7 @@ from sqlalchemy import select
 import app.rag.index_service as index_service
 from app.db.models import Chunk, Conversation, Exchange, File, Workspace
 from app.db.session import async_session_factory
+from app.services import crypto
 
 EMBEDDING = [0.0] * 384
 
@@ -43,6 +44,35 @@ class _StubNode:
 async def _seed_workspace_with_chunk() -> int:
     async with async_session_factory() as session:
         workspace = Workspace(name="Company X", slug="company-x")
+        session.add(workspace)
+        await session.flush()
+
+        file = File(
+            workspace_id=workspace.id,
+            filename="stored.pdf",
+            display_name="Report",
+            original_filename="report.pdf",
+            status="indexed",
+        )
+        session.add(file)
+        await session.flush()
+
+        session.add(
+            Chunk(file_id=file.id, chunk_index=0, text="The answer is 42.", embedding=EMBEDDING)
+        )
+        await session.commit()
+        return workspace.id
+
+
+async def _seed_dedicated_workspace_with_chunk(provider: str, encrypted_api_key: str) -> int:
+    async with async_session_factory() as session:
+        workspace = Workspace(
+            name="Dedicated Co",
+            slug="dedicated-co",
+            key_source="dedicated",
+            key_provider=provider,
+            encrypted_api_key=encrypted_api_key,
+        )
         session.add(workspace)
         await session.flush()
 
@@ -140,7 +170,12 @@ def test_answer_question_without_chunks_returns_placeholder(monkeypatch) -> None
 
     result = asyncio.run(index_service.answer_question(workspace_id, "Anything?"))
 
-    assert result == {"answer": "No documents have been indexed yet.", "sources": []}
+    assert result == {
+        "answer": "No documents have been indexed yet.",
+        "sources": [],
+        "llm_key_source": "system",
+        "llm_provider": "minimax",
+    }
 
 
 def test_answer_question_requires_minimax_api_key_by_default(monkeypatch) -> None:
@@ -302,6 +337,67 @@ def test_answer_question_caps_history_at_ask_history_limit(monkeypatch) -> None:
     assert len(messages) == 4
     assert messages[1].content == "Newer question?"
     assert messages[2].content == "Newer answer."
+
+
+def _make_capturing_llm(captured: list) -> type:
+    class _CapturingConstructorLLM(_StubLLM):
+        def __init__(self, *args, **kwargs) -> None:
+            captured.append(kwargs)
+            super().__init__(*args, **kwargs)
+
+    return _CapturingConstructorLLM
+
+
+def test_answer_question_records_system_key_source_and_provider(monkeypatch) -> None:
+    monkeypatch.setattr(index_service, "_get_embed_model", lambda: _StubEmbedModel())
+    monkeypatch.setattr(index_service, "MiniMax", _StubLLM)
+    monkeypatch.setattr(index_service, "MINIMAX_API_KEY", "test-key")
+
+    workspace_id = asyncio.run(_seed_workspace_with_chunk())
+
+    result = asyncio.run(index_service.answer_question(workspace_id, "What is the answer?"))
+
+    assert result["llm_key_source"] == "system"
+    assert result["llm_provider"] == "minimax"
+
+
+def test_answer_question_uses_dedicated_gemini_key_instead_of_system_config(monkeypatch) -> None:
+    monkeypatch.setattr(index_service, "_get_embed_model", lambda: _StubEmbedModel())
+    monkeypatch.setattr(crypto, "WORKSPACE_KEY_ENCRYPTION_SECRET", "test-secret")
+    captured: list[dict] = []
+    monkeypatch.setattr(index_service, "GoogleGenAI", _make_capturing_llm(captured))
+
+    encrypted_key = crypto.encrypt("dedicated-gemini-key")
+    workspace_id = asyncio.run(
+        _seed_dedicated_workspace_with_chunk("gemini", encrypted_key)
+    )
+
+    result = asyncio.run(index_service.answer_question(workspace_id, "What is the answer?"))
+
+    assert result["answer"] == "The real answer."
+    assert result["llm_key_source"] == "dedicated"
+    assert result["llm_provider"] == "gemini"
+    assert captured[0]["api_key"] == "dedicated-gemini-key"
+
+
+def test_answer_question_dedicated_key_ignores_missing_system_credentials(monkeypatch) -> None:
+    monkeypatch.setattr(index_service, "_get_embed_model", lambda: _StubEmbedModel())
+    monkeypatch.setattr(crypto, "WORKSPACE_KEY_ENCRYPTION_SECRET", "test-secret")
+    monkeypatch.setattr(index_service, "MINIMAX_API_KEY", "")
+    monkeypatch.setattr(index_service, "GOOGLE_API_KEY", "")
+    captured: list[dict] = []
+    monkeypatch.setattr(index_service, "MiniMax", _make_capturing_llm(captured))
+
+    encrypted_key = crypto.encrypt("dedicated-minimax-key")
+    workspace_id = asyncio.run(
+        _seed_dedicated_workspace_with_chunk("minimax", encrypted_key)
+    )
+
+    result = asyncio.run(index_service.answer_question(workspace_id, "What is the answer?"))
+
+    assert result["answer"] == "The real answer."
+    assert result["llm_key_source"] == "dedicated"
+    assert captured[0]["api_key"] == "dedicated-minimax-key"
 
 
 def test_answer_question_excludes_failed_and_pending_exchanges_from_history(monkeypatch) -> None:

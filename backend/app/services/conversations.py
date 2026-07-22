@@ -73,6 +73,8 @@ async def ask(
         exchange.answer = str(result["answer"])
         exchange.sources = result["sources"]
         exchange.status = "answered"
+        exchange.llm_key_source = result.get("llm_key_source")
+        exchange.llm_provider = result.get("llm_provider")
         await session.commit()
 
     return AskResponse(

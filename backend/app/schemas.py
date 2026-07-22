@@ -9,8 +9,11 @@ class WorkspacePublic(BaseModel):
     id: int
     name: str
     slug: str
+    description: str
     created_at: datetime.datetime
     can_edit: bool
+    key_source: str | None = None
+    key_provider: str | None = None
 
 
 class FilePublic(BaseModel):

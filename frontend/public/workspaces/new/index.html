@@ -19,10 +19,103 @@
           <input type="text" name="name" required />
         </label>
       </p>
+      <p>
+        <label>
+          Description
+          <textarea name="description" rows="3"></textarea>
+        </label>
+      </p>
+
+      <details id="advanced-section">
+        <summary>Advanced</summary>
+
+        <fieldset>
+          <legend>API key</legend>
+
+          <p>
+            <label>
+              <input type="radio" name="key_source" value="system" checked />
+              System API keys
+            </label>
+            <br />
+            <small
+              >Uses this deployment's shared API keys. Free, but limited
+              &mdash; it might fail under heavy use.</small
+            >
+          </p>
+          <p>
+            <label>
+              <input type="radio" name="key_source" value="dedicated" />
+              Dedicated
+            </label>
+            <br />
+            <small
+              >Use your own API key. You provide the key, and usage is
+              charged to your own account.</small
+            >
+          </p>
+
+          <div id="dedicated-key-fields" hidden>
+            <p>
+              <label>
+                <input type="radio" name="key_provider" value="gemini" checked />
+                Gemini
+              </label>
+              <label>
+                <input type="radio" name="key_provider" value="minimax" />
+                MiniMax
+              </label>
+            </p>
+            <p>
+              <label id="api-key-label">
+                Google API key
+                <input type="password" name="api_key" autocomplete="off" />
+              </label>
+            </p>
+          </div>
+        </fieldset>
+      </details>
+
       <button type="submit">Create workspace</button>
     </form>
 
     <script>
+      const dedicatedFields = document.getElementById("dedicated-key-fields");
+      const apiKeyLabel = document.getElementById("api-key-label");
+      const apiKeyInput = apiKeyLabel.querySelector("input");
+      const keySourceRadios = document.querySelectorAll(
+        'input[name="key_source"]'
+      );
+      const keyProviderRadios = document.querySelectorAll(
+        'input[name="key_provider"]'
+      );
+      const providerLabels = { gemini: "Google API key", minimax: "MiniMax API key" };
+
+      function updateApiKeyLabel() {
+        const selected = document.querySelector(
+          'input[name="key_provider"]:checked'
+        );
+        const provider = selected ? selected.value : "gemini";
+        apiKeyLabel.firstChild.textContent = providerLabels[provider] + " ";
+      }
+
+      function updateDedicatedVisibility() {
+        const isDedicated =
+          document.querySelector('input[name="key_source"]:checked').value ===
+          "dedicated";
+        dedicatedFields.hidden = !isDedicated;
+        apiKeyInput.required = isDedicated;
+      }
+
+      keySourceRadios.forEach(function (radio) {
+        radio.addEventListener("change", updateDedicatedVisibility);
+      });
+      keyProviderRadios.forEach(function (radio) {
+        radio.addEventListener("change", updateApiKeyLabel);
+      });
+      updateDedicatedVisibility();
+      updateApiKeyLabel();
+
       document
         .getElementById("new-workspace-form")
         .addEventListener("htmx:afterRequest", function (evt) {

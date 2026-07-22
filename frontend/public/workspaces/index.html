@@ -3,6 +3,8 @@
   <head>
     <!--#set var="page_title" value="Workspaces — Dir Query" -->
     <!--#include virtual="/partials/head.html" -->
+    <script src="/marked.min.js"></script>
+    <script src="/purify.min.js"></script>
   </head>
   <body>
     <!--#include virtual="/partials/nav.html" -->
@@ -19,6 +21,43 @@
     </p>
 
     <script>
+      // Force every link markdown produces to open safely in a new tab,
+      // regardless of what the description's markdown source specified.
+      DOMPurify.addHook("afterSanitizeAttributes", function (node) {
+        if (node.tagName === "A") {
+          node.setAttribute("target", "_blank");
+          node.setAttribute("rel", "noopener noreferrer");
+        }
+      });
+
+      const MARKDOWN_ALLOWED_TAGS = [
+        "p",
+        "strong",
+        "em",
+        "ul",
+        "ol",
+        "li",
+        "br",
+        "code",
+        "pre",
+        "blockquote",
+        "a",
+      ];
+      const MARKDOWN_ALLOWED_ATTR = ["href", "target", "rel"];
+
+      // A workspace description is user-supplied, so it's untrusted.
+      // marked() only parses markdown into HTML — it does not sanitize —
+      // so every conversion is run through DOMPurify with a conservative
+      // allowlist before it's used with innerHTML.
+      function renderMarkdown(container, text) {
+        const rawHtml = marked.parse(text);
+        const cleanHtml = DOMPurify.sanitize(rawHtml, {
+          ALLOWED_TAGS: MARKDOWN_ALLOWED_TAGS,
+          ALLOWED_ATTR: MARKDOWN_ALLOWED_ATTR,
+        });
+        container.innerHTML = cleanHtml;
+      }
+
       fetch("/api/workspaces")
         .then((res) => res.json())
         .then((workspaces) => {
@@ -34,6 +73,14 @@
             a.href = "/w/" + workspace.slug + "/ask";
             a.textContent = workspace.name;
             li.appendChild(a);
+
+            if (workspace.description) {
+              const descriptionEl = document.createElement("div");
+              descriptionEl.className = "workspace-description";
+              renderMarkdown(descriptionEl, workspace.description);
+              li.appendChild(descriptionEl);
+            }
+
             list.appendChild(li);
           });
         });
