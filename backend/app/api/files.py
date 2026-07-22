@@ -19,7 +19,7 @@ from app.config import MAX_UPLOAD_BYTES, UPLOAD_DIR
 from app.db.models import File, Workspace
 from app.db.session import get_session
 from app.rag import index_service
-from app.schemas import FilePublic, UploadPublic
+from app.schemas import FilePublic, FileRename, UploadPublic
 
 router = APIRouter()
 
@@ -155,6 +155,50 @@ async def list_files(
         .order_by(File.uploaded_at.desc())
     )
     return {"data": [_file_public(file) for file in result.scalars().all()]}
+
+
+@router.patch("/w/{slug}/files/{file_id}")
+async def rename_file(
+    file_id: int,
+    payload: FileRename,
+    workspace: Workspace = Depends(require_workspace_edit_access),
+    session: AsyncSession = Depends(get_session),
+) -> FilePublic:
+    file = await _get_workspace_file(workspace, file_id, session)
+
+    display_name = payload.display_name.strip()
+    if not display_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Display name cannot be blank",
+        )
+
+    existing_display_name = await session.execute(
+        select(File.id).where(
+            File.workspace_id == workspace.id,
+            File.display_name == display_name,
+            File.id != file_id,
+        )
+    )
+    if existing_display_name.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A file named '{display_name}' already exists in this workspace. "
+            "Please choose a different name.",
+        )
+
+    file.display_name = display_name
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A file with this name already exists in this workspace.",
+        ) from exc
+    await session.refresh(file)
+
+    return _file_public(file)
 
 
 @router.delete("/w/{slug}/files/{file_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -22,6 +22,10 @@ class FilePublic(BaseModel):
     url: str
 
 
+class FileRename(BaseModel):
+    display_name: str
+
+
 class UploadPublic(BaseModel):
     filename: str
     display_name: str

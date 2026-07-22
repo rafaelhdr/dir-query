@@ -384,6 +384,110 @@ def test_anyone_can_delete_from_ownerless_workspace(client: TestClient) -> None:
     assert response.status_code == 204
 
 
+def test_rename_file_updates_display_name(client: TestClient) -> None:
+    slug = _create_workspace(client)
+    _upload(client, slug, name="Old Name")
+    file_id = client.get(f"/w/{slug}/files").json()["data"][0]["id"]
+
+    response = client.patch(
+        f"/w/{slug}/files/{file_id}", json={"display_name": "New Name"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["display_name"] == "New Name"
+    assert client.get(f"/w/{slug}/files").json()["data"][0]["display_name"] == "New Name"
+
+
+def test_rename_file_to_blank_name_is_rejected(client: TestClient) -> None:
+    slug = _create_workspace(client)
+    _upload(client, slug, name="Old Name")
+    file_id = client.get(f"/w/{slug}/files").json()["data"][0]["id"]
+
+    response = client.patch(f"/w/{slug}/files/{file_id}", json={"display_name": "   "})
+
+    assert response.status_code == 400
+    assert client.get(f"/w/{slug}/files").json()["data"][0]["display_name"] == "Old Name"
+
+
+def test_rename_file_to_a_name_already_used_is_rejected(client: TestClient) -> None:
+    slug = _create_workspace(client)
+    _upload(client, slug, filename="a.pdf", name="Report A")
+    _upload(client, slug, filename="b.pdf", name="Report B")
+    entries = client.get(f"/w/{slug}/files").json()["data"]
+    file_id = next(e["id"] for e in entries if e["display_name"] == "Report A")
+
+    response = client.patch(
+        f"/w/{slug}/files/{file_id}", json={"display_name": "Report B"}
+    )
+
+    assert response.status_code == 409
+    assert "already exists" in response.json()["detail"]
+
+
+def test_rename_file_to_its_own_current_name_succeeds(client: TestClient) -> None:
+    slug = _create_workspace(client)
+    _upload(client, slug, name="Same Name")
+    file_id = client.get(f"/w/{slug}/files").json()["data"][0]["id"]
+
+    response = client.patch(
+        f"/w/{slug}/files/{file_id}", json={"display_name": "Same Name"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["display_name"] == "Same Name"
+
+
+def test_rename_nonexistent_file_returns_404(client: TestClient) -> None:
+    slug = _create_workspace(client)
+
+    response = client.patch(f"/w/{slug}/files/9999", json={"display_name": "New Name"})
+
+    assert response.status_code == 404
+
+
+def test_owner_can_rename_a_file_in_their_own_workspace(client: TestClient) -> None:
+    slug, headers = _create_owned_workspace(client)
+    _upload(client, slug, name="Old Name", headers=headers)
+    file_id = client.get(f"/w/{slug}/files").json()["data"][0]["id"]
+
+    response = client.patch(
+        f"/w/{slug}/files/{file_id}",
+        json={"display_name": "New Name"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+
+
+def test_anonymous_rename_on_owned_workspace_is_rejected(client: TestClient) -> None:
+    slug, headers = _create_owned_workspace(client)
+    _upload(client, slug, name="Old Name", headers=headers)
+    file_id = client.get(f"/w/{slug}/files").json()["data"][0]["id"]
+
+    response = client.patch(
+        f"/w/{slug}/files/{file_id}", json={"display_name": "New Name"}
+    )
+
+    assert response.status_code == 401
+    assert client.get(f"/w/{slug}/files").json()["data"][0]["display_name"] == "Old Name"
+
+
+def test_non_owner_rename_on_owned_workspace_is_rejected(client: TestClient) -> None:
+    slug, headers = _create_owned_workspace(client)
+    _upload(client, slug, name="Old Name", headers=headers)
+    file_id = client.get(f"/w/{slug}/files").json()["data"][0]["id"]
+    other_headers = _register(client, "other@example.com")
+
+    response = client.patch(
+        f"/w/{slug}/files/{file_id}",
+        json={"display_name": "New Name"},
+        headers=other_headers,
+    )
+
+    assert response.status_code == 403
+    assert client.get(f"/w/{slug}/files").json()["data"][0]["display_name"] == "Old Name"
+
+
 def test_listing_files_is_unrestricted_regardless_of_ownership(
     client: TestClient,
 ) -> None:

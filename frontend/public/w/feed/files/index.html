@@ -73,6 +73,73 @@
         }
       });
 
+      function renderNameCell(nameTd, file) {
+        nameTd.innerHTML = "";
+
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.display_name;
+        nameTd.appendChild(nameSpan);
+
+        if (!canEdit) {
+          return;
+        }
+
+        const editButton = document.createElement("button");
+        editButton.type = "button";
+        editButton.className = "edit-link";
+        editButton.textContent = "Edit";
+        editButton.addEventListener("click", function () {
+          renderNameEditor(nameTd, file);
+        });
+        nameTd.appendChild(editButton);
+      }
+
+      function renderNameEditor(nameTd, file) {
+        nameTd.innerHTML = "";
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = file.display_name;
+        nameTd.appendChild(input);
+
+        const saveButton = document.createElement("button");
+        saveButton.type = "button";
+        saveButton.textContent = "Save";
+        nameTd.appendChild(saveButton);
+
+        const cancelButton = document.createElement("button");
+        cancelButton.type = "button";
+        cancelButton.textContent = "Cancel";
+        nameTd.appendChild(cancelButton);
+
+        const errorEl = document.createElement("div");
+        errorEl.className = "rename-error";
+        nameTd.appendChild(errorEl);
+
+        function cancel() {
+          renderNameCell(nameTd, file);
+        }
+
+        function save() {
+          errorEl.textContent = "";
+          renameFile(file.id, input.value, errorEl);
+        }
+
+        cancelButton.addEventListener("click", cancel);
+        saveButton.addEventListener("click", save);
+        input.addEventListener("keydown", function (evt) {
+          if (evt.key === "Enter") {
+            evt.preventDefault();
+            save();
+          } else if (evt.key === "Escape") {
+            evt.preventDefault();
+            cancel();
+          }
+        });
+
+        input.focus();
+      }
+
       function renderFiles(files) {
         const tbody = document.getElementById("file-list-body");
         tbody.innerHTML = "";
@@ -81,26 +148,23 @@
           const tr = document.createElement("tr");
 
           const nameTd = document.createElement("td");
-          const nameLink = document.createElement("a");
-          nameLink.href = file.url;
-          nameLink.target = "_blank";
-          nameLink.rel = "noopener";
-          nameLink.className = "file-open-link";
-          nameLink.title = "Open in a new tab";
-          nameLink.textContent = file.display_name;
-          const openIcon = document.createElement("span");
-          openIcon.className = "open-icon";
-          openIcon.setAttribute("aria-hidden", "true");
-          openIcon.textContent = "↗";
-          nameLink.appendChild(openIcon);
-          nameTd.appendChild(nameLink);
+          renderNameCell(nameTd, file);
           tr.appendChild(nameTd);
 
           const statusTd = document.createElement("td");
           statusTd.textContent = file.status;
           tr.appendChild(statusTd);
 
-          const deleteTd = document.createElement("td");
+          const actionsTd = document.createElement("td");
+
+          const openButton = document.createElement("button");
+          openButton.type = "button";
+          openButton.textContent = "Open";
+          openButton.addEventListener("click", function () {
+            window.open(file.url, "_blank", "noopener");
+          });
+          actionsTd.appendChild(openButton);
+
           if (canEdit) {
             const deleteButton = document.createElement("button");
             deleteButton.type = "button";
@@ -108,9 +172,9 @@
             deleteButton.addEventListener("click", function () {
               deleteFile(file.id);
             });
-            deleteTd.appendChild(deleteButton);
+            actionsTd.appendChild(deleteButton);
           }
-          tr.appendChild(deleteTd);
+          tr.appendChild(actionsTd);
 
           tbody.appendChild(tr);
         });
@@ -137,6 +201,27 @@
             loadFiles();
           }
         );
+      }
+
+      function renameFile(fileId, displayName, errorEl) {
+        return Auth.fetch("/api/w/" + slug + "/files/" + fileId, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ display_name: displayName }),
+        }).then(async function (response) {
+          if (response.ok) {
+            loadFiles();
+            return;
+          }
+          let detail = response.statusText;
+          try {
+            const body = await response.json();
+            detail = body.detail || detail;
+          } catch (e) {
+            // response body wasn't JSON; fall back to statusText
+          }
+          errorEl.textContent = detail;
+        });
       }
 
       document.getElementById("refresh-button").addEventListener("click", loadFiles);

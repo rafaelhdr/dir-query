@@ -1,95 +1,4 @@
-## Purpose
-
-The document-management capability lets a user view, open, and delete
-files previously uploaded to a workspace. It complements the
-document-upload capability (which covers pushing new files to the
-server) by providing the read/delete side of file CRUD: listing files
-with their status, opening a file's content directly via URL, and
-deleting a file along with its indexed chunks and stored content.
-
-## Requirements
-
-### Requirement: Workspace files can be listed
-The system SHALL provide an endpoint that returns every file previously
-uploaded to a workspace, including its id, display name, original
-filename, status, and a URL that resolves directly to that file's content,
-wrapped in a `data` array envelope so the response shape can later gain
-pagination fields (e.g. `next`, `total`) without changing what `data`
-means.
-
-#### Scenario: Listing files in a workspace with uploads
-- **WHEN** a client requests the file list for a workspace that has one
-  or more uploaded files
-- **THEN** the response body is a JSON object with a `data` array
-  containing one entry per file, each including its id, display name,
-  original filename, status, and a URL for that file's content
-
-#### Scenario: Listing files in a workspace with no uploads
-- **WHEN** a client requests the file list for a workspace that has no
-  uploaded files
-- **THEN** the response body is a JSON object with an empty `data` array
-
-#### Scenario: Listing files for a nonexistent workspace
-- **WHEN** a client requests the file list for a slug that does not
-  correspond to any existing workspace
-- **THEN** the backend responds with a 404 error
-
-### Requirement: Each listed file includes a URL for opening it directly
-The system SHALL include, in each file list entry, a URL that resolves
-directly to that file's stored PDF content without requiring a request to
-any file-specific backend API endpoint, so the frontend's "Open" control
-can use it directly as a link target. The system SHALL NOT require the
-file's bytes to pass through the backend API to be opened.
-
-#### Scenario: A listed file's URL serves the PDF directly
-- **WHEN** a client fetches the file list for a workspace with an
-  uploaded file and requests the URL given in that file's list entry
-- **THEN** the response is that file's PDF content with a content type a
-  browser renders inline rather than downloading
-
-#### Scenario: A deleted file's URL no longer resolves
-- **WHEN** a file has been deleted and a client requests the URL that was
-  previously in its list entry
-- **THEN** the request no longer resolves to file content
-
-### Requirement: A workspace file can be deleted, cascading to its chunks
-The system SHALL provide an endpoint that deletes a previously uploaded
-file: removing its row from the `files` table (cascading to delete its
-`chunks` rows), and removing its underlying file from server-side
-storage. When the file's workspace has an owner, the system SHALL
-restrict this endpoint to that owner: the request MUST carry a valid
-bearer token belonging to the owning user, or the backend SHALL reject
-it and delete nothing. Deletes on a workspace with no owner SHALL
-remain unrestricted, as today.
-
-#### Scenario: Deleting an existing file
-- **WHEN** a client with permission to edit the file's workspace
-  deletes that file by its id
-- **THEN** the file's `files` row no longer exists, its `chunks` rows no
-  longer exist, and its underlying file is no longer present in
-  server-side storage
-
-#### Scenario: Deleting a file that does not exist
-- **WHEN** a client attempts to delete a file id that does not exist (or
-  does not belong to the given workspace)
-- **THEN** the backend responds with a 404 error and no other file is
-  affected
-
-#### Scenario: Deleting one file does not affect others
-- **WHEN** a workspace has multiple uploaded files and one is deleted
-- **THEN** the remaining files' rows, chunks, and stored content are
-  unaffected
-
-#### Scenario: Non-owner cannot delete a file from an owned workspace
-- **WHEN** a different authenticated user, or an unauthenticated
-  visitor, attempts to delete a file belonging to a workspace owned by
-  someone else
-- **THEN** the backend rejects the request and the file is not deleted
-
-#### Scenario: Anyone can delete a file from an ownerless workspace
-- **WHEN** any visitor, authenticated or not, deletes a file belonging
-  to a workspace that has no owner
-- **THEN** the file is deleted as normal
+## MODIFIED Requirements
 
 ### Requirement: The content page shows every file with a manual refresh
 The system SHALL display, on the content page, every file uploaded to the
@@ -149,6 +58,8 @@ unaffected by `can_edit` and remain available to everyone.
   content page
 - **THEN** the file list, statuses, and "Open" buttons are still shown
   normally, even though "Delete" and "Edit" are hidden
+
+## ADDED Requirements
 
 ### Requirement: A file's display name can be renamed inline
 The system SHALL let a visitor with edit access to a workspace rename any
