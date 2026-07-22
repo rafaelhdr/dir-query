@@ -55,6 +55,13 @@ services:
       - ./backend/data/uploads:/data/uploads:ro
     depends_on:
       - backend
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend/public
+          target: /usr/share/nginx/html
+        - action: rebuild
+          path: ./frontend/nginx.conf
 
 volumes:
   postgres-data:

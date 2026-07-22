@@ -183,3 +183,17 @@ nav .beta-badge {
   color: #b00020;
   font-size: 0.85em;
 }
+
+footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+footer a {
+  color: inherit;
+}
