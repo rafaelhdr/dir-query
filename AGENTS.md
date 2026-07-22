@@ -36,6 +36,32 @@ docker compose up --build
 
 Copy `.env.example` to `.env` to override the exposed ports.
 
+### Working across `wt` worktrees
+
+Each worktree needs its own `.env`, `secrets/*.txt`, and (ideally) a warm
+`backend/data/hf-cache/` to run `docker compose up`. `.config/wt.toml`'s
+`post-start` hook runs `wt step copy-ignored` automatically whenever a new
+worktree is created, copying these gitignored files/directories over from
+the worktree it was branched from (scoped by `.worktreeinclude`) — so a
+freshly created worktree can `docker compose up --build` immediately,
+without manually recreating them.
+
+Two things this does *not* do for you:
+
+- **Postgres data starts fresh in every worktree.** `postgres`'s volume is
+  bind-mounted to `./pg_data` (also copied by the hook) instead of a named
+  Docker volume, but Postgres hardens its own data directory to `0700`
+  under its container-internal user, so a plain file copy running as your
+  host user can't actually read those bytes. In practice every new
+  worktree gets an empty database — migrations run automatically on
+  backend startup, so `docker compose up` still works, you just start
+  with no users/workspaces.
+- **Ports and `COMPOSE_PROJECT_NAME` are copied as-is.** Running more than
+  one worktree's stack at the same time will collide on ports 8000/8080/
+  5432 and on container/volume names. Before doing that, edit the new
+  worktree's `.env`: bump `BACKEND_PORT`, `FRONTEND_PORT`, and
+  `POSTGRES_PORT`, and set a unique `COMPOSE_PROJECT_NAME`.
+
 ### LLM and embedding providers
 
 The embedding provider (used for indexing and retrieval) and the LLM

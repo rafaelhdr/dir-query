@@ -1,0 +1,5 @@
+.env
+secrets/*.txt
+pg_data/
+backend/data/hf-cache/
+backend/data/uploads/

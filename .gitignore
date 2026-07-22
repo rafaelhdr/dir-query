@@ -16,6 +16,11 @@ backend/data/uploads/*
 backend/data/hf-cache/*
 !backend/data/hf-cache/.gitkeep
 
+# Postgres data directory (bind-mounted so `wt step copy-ignored` can
+# replicate it into new worktrees)
+pg_data/*
+!pg_data/.gitkeep
+
 # Local secrets
 secrets/*
 !secrets/.gitkeep
