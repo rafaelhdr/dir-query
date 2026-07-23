@@ -27,18 +27,22 @@ in the viewport.
 ### Requirement: Ask page submits questions to the backend and displays the answer
 The system SHALL submit each question entered on a workspace's ask page
 to that workspace's backend question-answering endpoint, SHALL display a
-loading state for that question while waiting for a response, and SHALL
-display each question together with its resulting answer (or error) as
-its own exchange, stacked below any previous exchanges in the same
-conversation, without limit on how many exchanges can accumulate on the
-page.
+loading state for that question until the first part of the answer
+arrives, SHALL progressively render the answer text as formatted Markdown
+as it streams in from the backend rather than waiting for the complete
+answer, and SHALL display each question together with its resulting
+answer (or error) as its own exchange, stacked below any previous
+exchanges in the same conversation, without limit on how many exchanges
+can accumulate on the page.
 
-#### Scenario: Submitting a question shows an answer
+#### Scenario: Submitting a question shows the answer streaming in
 - **WHEN** a user types a question into the input on a workspace's ask
   page and submits it
 - **THEN** the question is immediately displayed, a loading indicator is
-  shown while the backend processes it, and once the backend responds
-  the loading indicator is replaced with the returned answer
+  shown until the backend begins sending the answer, and the loading
+  indicator is then replaced with the answer text progressively
+  rendering as it streams in, until the complete answer and its sources
+  are shown
 
 #### Scenario: Submitting a second question appends below the first
 - **WHEN** a user submits a question after an earlier question in the
@@ -49,7 +53,8 @@ page.
 
 #### Scenario: Backend error is shown to the user
 - **WHEN** the backend returns an error in response to a submitted
-  question
+  question, whether before any answer text has streamed or partway
+  through streaming
 - **THEN** that exchange displays a clear error message in place of an
   answer, and earlier exchanges in the same conversation remain
   displayed unchanged
@@ -100,8 +105,6 @@ workspace.
 - **WHEN** a user navigates to `/w/<slug>` for a workspace that exists
 - **THEN** the ask page for that workspace loads, showing that
   workspace's name in the heading and the "Ask" tab selected
-</content>
-</invoke>
 
 ### Requirement: Ask page provides a way to start a new conversation
 The system SHALL provide an action on a workspace's ask page that starts

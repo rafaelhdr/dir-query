@@ -55,13 +55,6 @@ class ConversationDetail(ConversationPublic):
     exchanges: list[ExchangePublic]
 
 
-class AskResponse(BaseModel):
-    conversation_id: int
-    title: str
-    answer: str
-    sources: list[dict[str, str]]
-
-
 class TokenResponse(BaseModel):
     token: str
     email: str

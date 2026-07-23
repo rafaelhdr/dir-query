@@ -129,6 +129,27 @@
         container.innerHTML = cleanHtml;
       }
 
+      function appendSources(bodyEl, sources) {
+        if (!sources || !sources.length) {
+          return;
+        }
+        const sourcesEl = document.createElement("p");
+        sourcesEl.className = "exchange-sources";
+        sourcesEl.appendChild(document.createTextNode("Sources: "));
+        sources.forEach(function (source, index) {
+          if (index > 0) {
+            sourcesEl.appendChild(document.createTextNode(", "));
+          }
+          const link = document.createElement("a");
+          link.href = source.url;
+          link.target = "_blank";
+          link.rel = "noopener";
+          link.textContent = source.name;
+          sourcesEl.appendChild(link);
+        });
+        bodyEl.appendChild(sourcesEl);
+      }
+
       function showAnswer(bodyEl, answer, sources) {
         bodyEl.textContent = "";
 
@@ -137,22 +158,118 @@
         renderMarkdown(answerEl, answer);
         bodyEl.appendChild(answerEl);
 
-        if (sources && sources.length) {
-          const sourcesEl = document.createElement("p");
-          sourcesEl.className = "exchange-sources";
-          sourcesEl.appendChild(document.createTextNode("Sources: "));
-          sources.forEach(function (source, index) {
-            if (index > 0) {
-              sourcesEl.appendChild(document.createTextNode(", "));
+        appendSources(bodyEl, sources);
+      }
+
+      // Parses one SSE frame (everything between a "\n\n"-delimited chunk
+      // of the response body) into {type, data}. Returns null for
+      // heartbeat comment lines (`: keep-alive`) and blank frames.
+      function parseSseFrame(frame) {
+        if (!frame || frame.startsWith(":")) {
+          return null;
+        }
+        let eventType = "message";
+        const dataLines = [];
+        frame.split("\n").forEach(function (line) {
+          if (line.startsWith("event:")) {
+            eventType = line.slice(6).trim();
+          } else if (line.startsWith("data:")) {
+            dataLines.push(line.slice(5).trim());
+          }
+        });
+        if (dataLines.length === 0) {
+          return null;
+        }
+        return { type: eventType, data: JSON.parse(dataLines.join("\n")) };
+      }
+
+      const ANSWER_RENDER_THROTTLE_MS = 80;
+
+      // Reads the SSE response body, rendering the answer as Markdown
+      // progressively (throttled) as "token" events arrive, and finishing
+      // with an authoritative re-render + sources once "done" arrives.
+      // The "done" event's answer is authoritative (not just the
+      // concatenation of streamed tokens) because the backend can
+      // canonicalize the final text (e.g. the "not found" answer) only
+      // once generation completes.
+      async function streamAnswer(bodyEl, response, isFirstQuestion) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let answerEl = null;
+        let accumulated = "";
+        let lastRenderedAt = 0;
+        let sawToken = false;
+
+        function ensureAnswerEl() {
+          if (answerEl) {
+            return;
+          }
+          bodyEl.textContent = "";
+          answerEl = document.createElement("div");
+          answerEl.className = "exchange-answer";
+          bodyEl.appendChild(answerEl);
+        }
+
+        function renderThrottled(force) {
+          const now = Date.now();
+          if (!force && now - lastRenderedAt < ANSWER_RENDER_THROTTLE_MS) {
+            return;
+          }
+          lastRenderedAt = now;
+          renderMarkdown(answerEl, accumulated);
+        }
+
+        while (true) {
+          let chunk;
+          try {
+            chunk = await reader.read();
+          } catch (e) {
+            showError(bodyEl, "Something went wrong asking your question. Please try again.");
+            return;
+          }
+          if (chunk.done) {
+            break;
+          }
+          buffer += decoder.decode(chunk.value, { stream: true });
+
+          let separatorIndex;
+          while ((separatorIndex = buffer.indexOf("\n\n")) !== -1) {
+            const frame = buffer.slice(0, separatorIndex);
+            buffer = buffer.slice(separatorIndex + 2);
+            const parsed = parseSseFrame(frame);
+            if (!parsed) {
+              continue;
             }
-            const link = document.createElement("a");
-            link.href = source.url;
-            link.target = "_blank";
-            link.rel = "noopener";
-            link.textContent = source.name;
-            sourcesEl.appendChild(link);
-          });
-          bodyEl.appendChild(sourcesEl);
+
+            if (parsed.type === "token") {
+              sawToken = true;
+              ensureAnswerEl();
+              accumulated += parsed.data;
+              renderThrottled(false);
+            } else if (parsed.type === "done") {
+              ensureAnswerEl();
+              accumulated = parsed.data.answer;
+              renderThrottled(true);
+              appendSources(bodyEl, parsed.data.sources);
+              conversationId = parsed.data.conversation_id;
+              if (isFirstQuestion) {
+                window.history.replaceState({}, "", "/w/" + slug + "/ask/" + conversationId);
+              }
+              return;
+            } else if (parsed.type === "error") {
+              showError(
+                bodyEl,
+                parsed.data.detail || "Something went wrong answering your question. Please try again."
+              );
+              return;
+            }
+          }
+        }
+
+        // Connection ended without a "done"/"error" event.
+        if (!sawToken) {
+          showError(bodyEl, "Something went wrong asking your question. Please try again.");
         }
       }
 
@@ -205,23 +322,18 @@
             return;
           }
 
-          let data;
-          try {
-            data = await response.json();
-          } catch (e) {
-            showError(bodyEl, "Something went wrong asking your question. Please try again.");
+          if (!response.ok) {
+            let detail;
+            try {
+              detail = (await response.json()).detail;
+            } catch (e) {
+              // Non-JSON error body — fall back to statusText below.
+            }
+            showError(bodyEl, detail || response.statusText);
             return;
           }
 
-          if (response.ok) {
-            conversationId = data.conversation_id;
-            if (isFirstQuestion) {
-              window.history.replaceState({}, "", "/w/" + slug + "/ask/" + conversationId);
-            }
-            showAnswer(bodyEl, data.answer, data.sources);
-          } else {
-            showError(bodyEl, data.detail || response.statusText);
-          }
+          await streamAnswer(bodyEl, response, isFirstQuestion);
         } finally {
           questionInput.disabled = false;
           submitButton.disabled = false;

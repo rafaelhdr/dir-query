@@ -1,5 +1,5 @@
 import logging
-import re
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 from llama_index.core.embeddings import BaseEmbedding
@@ -37,7 +37,6 @@ NOT_FOUND_ANSWER = "I couldn't find anything related to your question in the upl
 _pdf_reader = PDFReader()
 _splitter = SentenceSplitter()
 _embed_model: BaseEmbedding | None = None
-_THINK_TAGS = re.compile(r"<think>.*?</think>\s*", flags=re.DOTALL)
 
 
 def _get_embed_model() -> BaseEmbedding:
@@ -76,8 +75,63 @@ def _get_llm(
     return MiniMax(model=MINIMAX_LLM_MODEL, api_key=MINIMAX_API_KEY)
 
 
-def _strip_reasoning(text: str) -> str:
-    return _THINK_TAGS.sub("", text).strip()
+_THINK_OPEN = "<think>"
+_THINK_CLOSE = "</think>"
+
+
+class _ReasoningFilter:
+    """Removes <think>...</think> reasoning blocks from a token stream as it
+    arrives, rather than after the fact. A plain "strip the whole buffer on
+    every delta" approach doesn't work while a <think> tag is still open (no
+    closing tag yet to match against) — that's exactly the window where an
+    unfiltered chunk would leak raw reasoning text to the client. This holds
+    back text while inside an unclosed block, and holds back a short tail
+    that could be the start of a tag split across chunk boundaries."""
+
+    def __init__(self) -> None:
+        self._pending = ""
+        self._in_think = False
+
+    def feed(self, delta: str) -> str:
+        self._pending += delta
+        emitted = []
+        while True:
+            if self._in_think:
+                idx = self._pending.find(_THINK_CLOSE)
+                if idx == -1:
+                    break
+                self._pending = self._pending[idx + len(_THINK_CLOSE) :].lstrip()
+                self._in_think = False
+                continue
+
+            idx = self._pending.find(_THINK_OPEN)
+            if idx == -1:
+                hold = 0
+                for i in range(1, len(_THINK_OPEN)):
+                    if self._pending.endswith(_THINK_OPEN[:i]):
+                        hold = i
+                        break
+                safe_end = len(self._pending) - hold
+                if safe_end > 0:
+                    emitted.append(self._pending[:safe_end])
+                self._pending = self._pending[safe_end:]
+                break
+
+            if idx > 0:
+                emitted.append(self._pending[:idx])
+            self._pending = self._pending[idx + len(_THINK_OPEN) :]
+            self._in_think = True
+
+        return "".join(emitted)
+
+    def flush(self) -> str:
+        """Releases any leftover text once the stream ends. A still-unclosed
+        <think> block at end-of-stream is dropped (nothing after it was ever
+        going to be answer text); a dangling partial tag prefix that never
+        completed is plain text after all."""
+        if self._in_think:
+            return ""
+        return self._pending
 
 
 async def index_uploaded_file(file_id: int, path: Path) -> None:
@@ -158,9 +212,10 @@ async def _load_history_messages(
     return messages
 
 
-async def answer_question(
-    workspace_id: int, question: str, conversation_id: int | None = None
-) -> dict[str, object]:
+async def resolve_llm(workspace_id: int) -> tuple[LLM, str, str | None]:
+    """Resolve which LLM/key to use for a workspace, eagerly, so a missing
+    API key raises RuntimeError before any streaming response has started
+    (see `conversations.ask`)."""
     async with async_session_factory() as session:
         workspace_result = await session.execute(
             select(
@@ -175,7 +230,17 @@ async def answer_question(
     used_provider = key_provider if key_source == "dedicated" else LLM_PROVIDER
 
     llm = _get_llm(key_source, key_provider, encrypted_api_key)
+    return llm, key_source, used_provider
 
+
+async def answer_question(
+    llm: LLM,
+    key_source: str,
+    used_provider: str | None,
+    workspace_id: int,
+    question: str,
+    conversation_id: int | None = None,
+) -> AsyncIterator[dict[str, object]]:
     embed_model = _get_embed_model()
     query_embedding = embed_model.get_query_embedding(question)
 
@@ -190,12 +255,16 @@ async def answer_question(
         rows = result.all()
 
         if not rows:
-            return {
-                "answer": "No documents have been indexed yet.",
+            answer = "No documents have been indexed yet."
+            yield {"type": "token", "text": answer}
+            yield {
+                "type": "final",
+                "answer": answer,
                 "sources": [],
                 "llm_key_source": key_source,
                 "llm_provider": used_provider,
             }
+            return
 
         history = (
             await _load_history_messages(session, conversation_id)
@@ -232,18 +301,39 @@ async def answer_question(
         ),
     ]
 
-    response = await llm.achat(messages)
-    answer = _strip_reasoning(str(response.message.content))
+    response_gen = await llm.astream_chat(messages)
 
+    reasoning_filter = _ReasoningFilter()
+    answer_parts: list[str] = []
+    async for chunk in response_gen:
+        visible = reasoning_filter.feed(chunk.delta or "")
+        if visible:
+            answer_parts.append(visible)
+            yield {"type": "token", "text": visible}
+
+    trailing = reasoning_filter.flush()
+    if trailing:
+        answer_parts.append(trailing)
+        yield {"type": "token", "text": trailing}
+
+    answer = "".join(answer_parts).strip()
+
+    # The final event always carries the authoritative answer text (which
+    # can differ slightly from what was streamed above, e.g. when the
+    # not-found sentence gets canonicalized below) so the client can do one
+    # last corrective render on completion.
     if NOT_FOUND_ANSWER.lower() in answer.lower():
-        return {
+        yield {
+            "type": "final",
             "answer": NOT_FOUND_ANSWER,
             "sources": [],
             "llm_key_source": key_source,
             "llm_provider": used_provider,
         }
+        return
 
-    return {
+    yield {
+        "type": "final",
         "answer": answer,
         "sources": sources,
         "llm_key_source": key_source,
