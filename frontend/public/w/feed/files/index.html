@@ -7,251 +7,188 @@
   <body>
     <!--#include virtual="/partials/nav.html" -->
 
-    <h1><span id="workspace-name"></span></h1>
+    <div x-data="filesPage()">
+      <h1><span x-text="workspaceName"></span></h1>
 
-    <nav class="workspace-tabs">
-      <a id="tab-ask" href="#">Ask</a>
-      <a id="tab-files" href="#" class="active" aria-current="page">Content</a>
-    </nav>
+      <nav class="workspace-tabs">
+        <a :href="'/w/' + slug + '/ask'">Ask</a>
+        <a :href="'/w/' + slug + '/feed/files'" class="active" aria-current="page">Content</a>
+      </nav>
 
-    <details id="add-content">
-      <summary>Add content</summary>
-      <form id="upload-form">
-        <input type="file" name="file" accept="application/pdf" required />
-        <input type="text" name="name" placeholder="Display name" required />
-        <button type="submit">Upload</button>
-      </form>
-      <div id="upload-result"></div>
-    </details>
+      <details id="add-content" x-show="canEdit">
+        <summary>Add content</summary>
+        <form @submit.prevent="upload($event)">
+          <input
+            type="file"
+            name="file"
+            accept="application/pdf"
+            required
+            @change="if ($event.target.files.length) nameInput = $event.target.files[0].name"
+          />
+          <input type="text" name="name" placeholder="Display name" required x-model="nameInput" />
+          <button type="submit">Upload</button>
+        </form>
+        <div id="upload-result" x-text="uploadError"></div>
+      </details>
 
-    <div class="file-list-header">
-      <h2>Files</h2>
-      <button id="refresh-button" type="button">Refresh</button>
+      <div class="file-list-header">
+        <h2>Files</h2>
+        <button type="button" @click="loadFiles()">Refresh</button>
+      </div>
+
+      <table id="file-list">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="file in files" :key="file.id">
+            <tr>
+              <td>
+                <span x-show="!file.editing" x-text="file.display_name"></span>
+                <button
+                  x-show="!file.editing && canEdit"
+                  type="button"
+                  class="edit-link"
+                  @click="file.editing = true; file.editValue = file.display_name; file.editError = ''"
+                >
+                  Edit
+                </button>
+                <template x-if="file.editing">
+                  <span>
+                    <input
+                      type="text"
+                      x-model="file.editValue"
+                      x-init="$nextTick(() => $el.focus())"
+                      @keydown.enter.prevent="saveRename(file)"
+                      @keydown.escape.prevent="file.editing = false"
+                    />
+                    <button type="button" @click="saveRename(file)">Save</button>
+                    <button type="button" @click="file.editing = false">Cancel</button>
+                    <div class="rename-error" x-text="file.editError"></div>
+                  </span>
+                </template>
+              </td>
+              <td x-text="file.status"></td>
+              <td>
+                <button type="button" @click="window.open(file.url, '_blank', 'noopener')">
+                  Open
+                </button>
+                <button x-show="canEdit" type="button" @click="deleteFile(file.id)">
+                  Delete
+                </button>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
     </div>
 
-    <table id="file-list">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Status</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="file-list-body"></tbody>
-    </table>
-
     <script>
-      const slug = window.location.pathname.split("/")[2];
-      const workspaceNameEl = document.getElementById("workspace-name");
-      let canEdit = false;
-      workspaceNameEl.textContent = slug;
-      document.getElementById("tab-ask").href = "/w/" + slug + "/ask";
-      document.getElementById("tab-files").href = "/w/" + slug + "/feed/files";
-
-      Auth.fetch("/api/workspaces/" + slug)
-        .then(async function (response) {
-          if (!response.ok) {
-            workspaceNameEl.textContent = "Workspace not found";
-            return;
-          }
-          const workspace = await response.json();
-          workspaceNameEl.textContent = workspace.name;
-          canEdit = workspace.can_edit;
-          document.getElementById("add-content").hidden = !canEdit;
-          loadFiles();
-        })
-        .catch(function () {
-          workspaceNameEl.textContent = "Workspace not found";
-        });
-
-      const fileInput = document.querySelector('#upload-form input[type="file"]');
-      const nameInput = document.querySelector('#upload-form input[name="name"]');
-
-      fileInput.addEventListener("change", function () {
-        if (fileInput.files.length) {
-          nameInput.value = fileInput.files[0].name;
-        }
-      });
-
-      function renderNameCell(nameTd, file) {
-        nameTd.innerHTML = "";
-
-        const nameSpan = document.createElement("span");
-        nameSpan.textContent = file.display_name;
-        nameTd.appendChild(nameSpan);
-
-        if (!canEdit) {
-          return;
-        }
-
-        const editButton = document.createElement("button");
-        editButton.type = "button";
-        editButton.className = "edit-link";
-        editButton.textContent = "Edit";
-        editButton.addEventListener("click", function () {
-          renderNameEditor(nameTd, file);
-        });
-        nameTd.appendChild(editButton);
-      }
-
-      function renderNameEditor(nameTd, file) {
-        nameTd.innerHTML = "";
-
-        const input = document.createElement("input");
-        input.type = "text";
-        input.value = file.display_name;
-        nameTd.appendChild(input);
-
-        const saveButton = document.createElement("button");
-        saveButton.type = "button";
-        saveButton.textContent = "Save";
-        nameTd.appendChild(saveButton);
-
-        const cancelButton = document.createElement("button");
-        cancelButton.type = "button";
-        cancelButton.textContent = "Cancel";
-        nameTd.appendChild(cancelButton);
-
-        const errorEl = document.createElement("div");
-        errorEl.className = "rename-error";
-        nameTd.appendChild(errorEl);
-
-        function cancel() {
-          renderNameCell(nameTd, file);
-        }
-
-        function save() {
-          errorEl.textContent = "";
-          renameFile(file.id, input.value, errorEl);
-        }
-
-        cancelButton.addEventListener("click", cancel);
-        saveButton.addEventListener("click", save);
-        input.addEventListener("keydown", function (evt) {
-          if (evt.key === "Enter") {
-            evt.preventDefault();
-            save();
-          } else if (evt.key === "Escape") {
-            evt.preventDefault();
-            cancel();
-          }
-        });
-
-        input.focus();
-      }
-
-      function renderFiles(files) {
-        const tbody = document.getElementById("file-list-body");
-        tbody.innerHTML = "";
-
-        files.forEach(function (file) {
-          const tr = document.createElement("tr");
-
-          const nameTd = document.createElement("td");
-          renderNameCell(nameTd, file);
-          tr.appendChild(nameTd);
-
-          const statusTd = document.createElement("td");
-          statusTd.textContent = file.status;
-          tr.appendChild(statusTd);
-
-          const actionsTd = document.createElement("td");
-
-          const openButton = document.createElement("button");
-          openButton.type = "button";
-          openButton.textContent = "Open";
-          openButton.addEventListener("click", function () {
-            window.open(file.url, "_blank", "noopener");
-          });
-          actionsTd.appendChild(openButton);
-
-          if (canEdit) {
-            const deleteButton = document.createElement("button");
-            deleteButton.type = "button";
-            deleteButton.textContent = "Delete";
-            deleteButton.addEventListener("click", function () {
-              deleteFile(file.id);
+      function filesPage() {
+        return {
+          slug: window.location.pathname.split("/")[2],
+          workspaceName: "",
+          canEdit: false,
+          files: [],
+          nameInput: "",
+          uploadError: "",
+          // Alpine auto-calls a component method literally named `init`
+          // on mount — no `x-init="init()"` needed on the root element
+          // (adding one too would run this twice).
+          async init() {
+            this.workspaceName = this.slug;
+            try {
+              const response = await Auth.fetch("/api/workspaces/" + this.slug);
+              if (!response.ok) {
+                this.workspaceName = "Workspace not found";
+                return;
+              }
+              const workspace = await response.json();
+              this.workspaceName = workspace.name;
+              this.canEdit = workspace.can_edit;
+              await this.loadFiles();
+            } catch (e) {
+              this.workspaceName = "Workspace not found";
+            }
+          },
+          async loadFiles() {
+            try {
+              const response = await Auth.fetch("/api/w/" + this.slug + "/files");
+              if (!response.ok) {
+                this.files = [];
+                return;
+              }
+              const body = await response.json();
+              this.files = (body.data || []).map(function (file) {
+                return Object.assign({}, file, {
+                  editing: false,
+                  editValue: "",
+                  editError: "",
+                });
+              });
+            } catch (e) {
+              this.files = [];
+            }
+          },
+          async deleteFile(fileId) {
+            await Auth.fetch("/api/w/" + this.slug + "/files/" + fileId, {
+              method: "DELETE",
             });
-            actionsTd.appendChild(deleteButton);
-          }
-          tr.appendChild(actionsTd);
-
-          tbody.appendChild(tr);
-        });
-      }
-
-      function loadFiles() {
-        return Auth.fetch("/api/w/" + slug + "/files")
-          .then(async function (response) {
-            if (!response.ok) {
-              renderFiles([]);
+            await this.loadFiles();
+          },
+          async saveRename(file) {
+            file.editError = "";
+            const response = await Auth.fetch(
+              "/api/w/" + this.slug + "/files/" + file.id,
+              {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ display_name: file.editValue }),
+              }
+            );
+            if (response.ok) {
+              await this.loadFiles();
               return;
             }
-            const body = await response.json();
-            renderFiles(body.data || []);
-          })
-          .catch(function () {
-            renderFiles([]);
-          });
+            let detail = response.statusText;
+            try {
+              const body = await response.json();
+              detail = body.detail || detail;
+            } catch (e) {
+              // response body wasn't JSON; fall back to statusText
+            }
+            file.editError = detail;
+          },
+          async upload(event) {
+            this.uploadError = "";
+            const formData = new FormData(event.target);
+            const response = await Auth.fetch("/api/w/" + this.slug + "/files", {
+              method: "POST",
+              body: formData,
+            });
+
+            let data;
+            try {
+              data = await response.json();
+            } catch (e) {
+              this.uploadError = await response.text();
+              return;
+            }
+
+            if (response.ok) {
+              event.target.reset();
+              this.nameInput = "";
+              await this.loadFiles();
+            } else {
+              this.uploadError = data.detail || response.statusText;
+            }
+          },
+        };
       }
-
-      function deleteFile(fileId) {
-        Auth.fetch("/api/w/" + slug + "/files/" + fileId, { method: "DELETE" }).then(
-          function () {
-            loadFiles();
-          }
-        );
-      }
-
-      function renameFile(fileId, displayName, errorEl) {
-        return Auth.fetch("/api/w/" + slug + "/files/" + fileId, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ display_name: displayName }),
-        }).then(async function (response) {
-          if (response.ok) {
-            loadFiles();
-            return;
-          }
-          let detail = response.statusText;
-          try {
-            const body = await response.json();
-            detail = body.detail || detail;
-          } catch (e) {
-            // response body wasn't JSON; fall back to statusText
-          }
-          errorEl.textContent = detail;
-        });
-      }
-
-      document.getElementById("refresh-button").addEventListener("click", loadFiles);
-
-      document.getElementById("upload-form").addEventListener("submit", async function (evt) {
-        evt.preventDefault();
-        const resultEl = document.getElementById("upload-result");
-        resultEl.textContent = "";
-
-        const formData = new FormData(evt.target);
-        const response = await Auth.fetch("/api/w/" + slug + "/files", {
-          method: "POST",
-          body: formData,
-        });
-
-        let data;
-        try {
-          data = await response.json();
-        } catch (e) {
-          resultEl.textContent = await response.text();
-          return;
-        }
-
-        if (response.ok) {
-          evt.target.reset();
-          loadFiles();
-        } else {
-          resultEl.textContent = data.detail || response.statusText;
-        }
-      });
     </script>
 
     <!--#include virtual="/partials/footer.html" -->

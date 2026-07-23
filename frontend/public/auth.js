@@ -35,13 +35,6 @@
     return fetch(url, options);
   }
 
-  document.addEventListener("htmx:configRequest", function (evt) {
-    var token = getToken();
-    if (token) {
-      evt.detail.headers["Authorization"] = "Bearer " + token;
-    }
-  });
-
   window.Auth = {
     getToken: getToken,
     getEmail: getEmail,
@@ -49,5 +42,36 @@
     clearSession: clearSession,
     isLoggedIn: isLoggedIn,
     fetch: authFetch,
+  };
+
+  window.apiForm = function () {
+    return {
+      error: "",
+      submitting: false,
+      submit: async function (url, event, onSuccess) {
+        this.error = "";
+        this.submitting = true;
+        try {
+          var response = await Auth.fetch(url, {
+            method: "POST",
+            body: new FormData(event.target),
+          });
+          var data;
+          try {
+            data = await response.json();
+          } catch (e) {
+            this.error = await response.text();
+            return;
+          }
+          if (response.ok) {
+            onSuccess(data);
+          } else {
+            this.error = data.detail || response.statusText;
+          }
+        } finally {
+          this.submitting = false;
+        }
+      },
+    };
   };
 })();

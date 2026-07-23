@@ -9,7 +9,7 @@ This is a monorepo with a clear separation between backend and frontend:
 ```
 .
 ├── backend/     # Python FastAPI API
-├── frontend/    # Static htmx frontend, served by Nginx
+├── frontend/    # Static Alpine.js frontend, served by Nginx
 ├── openspec/    # Spec-driven change proposals (see below)
 └── docker-compose.yml
 ```
@@ -17,8 +17,8 @@ This is a monorepo with a clear separation between backend and frontend:
 - **`backend/`**: FastAPI application. Source lives in `backend/app/`, tests in
   `backend/tests/`. Dependencies are managed with [`uv`](https://docs.astral.sh/uv/)
   via `backend/pyproject.toml` and `backend/uv.lock`.
-- **`frontend/`**: Plain HTML + [htmx](https://htmx.org) (vendored, not CDN-loaded),
-  served as static files by Nginx. No build step, no framework.
+- **`frontend/`**: Plain HTML + [Alpine.js](https://alpinejs.dev) (vendored,
+  not CDN-loaded), served as static files by Nginx. No build step, no framework.
 
 The backend and frontend are independently deployable services connected only
 by HTTP. Do not introduce cross-imports or shared code between them.
@@ -176,8 +176,12 @@ uv run uvicorn app.main:app --reload   # run locally without Docker
 ## Frontend development
 
 The frontend is intentionally framework-free: static HTML files under
-`frontend/public/`, using htmx for interactivity. When adding pages or
-partials, keep them as plain HTML/htmx — do not introduce a JS build
+`frontend/public/`, using [Alpine.js](https://alpinejs.dev) (vendored
+locally as `alpine.min.js`, not CDN-loaded, included with the `defer`
+attribute since it auto-initializes on `DOMContentLoaded` and needs the
+DOM fully parsed first) for interactivity. When adding pages or
+partials, keep them as plain HTML with Alpine's declarative bindings
+(`x-data`, `x-show`, `x-for`, etc.) — do not introduce a JS build
 toolchain without discussing it first.
 
 Shared markup (the `<head>` boilerplate, nav, and page heading/beta-badge)

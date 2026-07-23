@@ -10,49 +10,30 @@
     <!--#set var="page_heading" value="Register" -->
     <!--#include virtual="/partials/heading.html" -->
 
-    <div id="form-error"></div>
+    <div x-data="apiForm()">
+      <div id="form-error" x-text="error"></div>
 
-    <form id="register-form" hx-post="/api/auth/register" hx-swap="none">
-      <p>
-        <label>
-          Email
-          <input type="email" name="email" required />
-        </label>
-      </p>
-      <p>
-        <label>
-          Password
-          <input type="password" name="password" required />
-        </label>
-      </p>
-      <button type="submit">Register</button>
-    </form>
+      <form
+        id="register-form"
+        @submit.prevent="submit('/api/auth/register', $event, (data) => { Auth.setSession(data.token, data.email); window.location = '/workspaces'; })"
+      >
+        <p>
+          <label>
+            Email
+            <input type="email" name="email" required />
+          </label>
+        </p>
+        <p>
+          <label>
+            Password
+            <input type="password" name="password" required />
+          </label>
+        </p>
+        <button type="submit" :disabled="submitting">Register</button>
+      </form>
+    </div>
 
     <p><a href="/login">Already have an account? Log in</a></p>
-
-    <script>
-      document
-        .getElementById("register-form")
-        .addEventListener("htmx:afterRequest", function (evt) {
-          const errorEl = document.getElementById("form-error");
-          errorEl.textContent = "";
-
-          let data;
-          try {
-            data = JSON.parse(evt.detail.xhr.response);
-          } catch (e) {
-            errorEl.textContent = evt.detail.xhr.response;
-            return;
-          }
-
-          if (evt.detail.successful) {
-            Auth.setSession(data.token, data.email);
-            window.location = "/workspaces";
-          } else {
-            errorEl.textContent = data.detail || evt.detail.xhr.response;
-          }
-        });
-    </script>
 
     <!--#include virtual="/partials/footer.html" -->
   </body>

@@ -6,9 +6,7 @@ authenticate subsequent requests. It underpins optional workspace
 ownership in the `workspace-management` capability: a workspace
 created while authenticated is owned by that user, and only they may
 edit it.
-
 ## Requirements
-
 ### Requirement: A visitor can register with email and password
 The system SHALL provide an endpoint to create a new user account from
 an email and password, storing the password only as a salted hash
@@ -108,8 +106,9 @@ The system SHALL provide pages at `/register` and `/login` that submit
 credentials to the registration/login endpoints and store the returned
 token in `sessionStorage`, and SHALL attach that token as an
 `Authorization: Bearer <token>` header on subsequent same-origin API
-requests (both htmx-driven and script-driven) for the lifetime of the
-browser tab, without requiring each page to wire this up individually.
+requests for the lifetime of the browser tab, via a single shared
+request helper used by every page and form, without requiring each
+page to wire this up individually.
 
 #### Scenario: Token persists across page navigation within a tab
 - **WHEN** a user logs in and then navigates to a different page within
@@ -125,3 +124,4 @@ browser tab, without requiring each page to wire this up individually.
 - **WHEN** a logged-in user logs out
 - **THEN** the token is removed from `sessionStorage` and subsequent
   requests from that tab are sent without an `Authorization` header
+

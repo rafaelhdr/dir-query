@@ -9,87 +9,69 @@
   <body>
     <!--#include virtual="/partials/nav.html" -->
 
-    <h1><span id="workspace-name"></span></h1>
+    <div x-data="askPage()">
+      <h1><span x-text="workspaceName"></span></h1>
 
-    <nav class="workspace-tabs">
-      <a id="tab-ask" href="#" class="active" aria-current="page">Ask</a>
-      <a id="tab-files" href="#">Content</a>
-    </nav>
+      <nav class="workspace-tabs">
+        <a :href="'/w/' + slug + '/ask'" class="active" aria-current="page">Ask</a>
+        <a :href="'/w/' + slug + '/feed/files'">Content</a>
+      </nav>
 
-    <div class="ask-page-nav">
-      <a id="conversation-history-link" href="#">Past conversations</a>
-      <button type="button" id="new-conversation-btn" hidden>New conversation</button>
+      <div class="ask-page-nav">
+        <a :href="'/w/' + slug + '/ask/conversations'">Past conversations</a>
+        <button type="button" x-show="exchanges.length > 0" @click="resetConversation()">
+          New conversation
+        </button>
+      </div>
+
+      <p>Ask a question about this workspace's uploaded documents.</p>
+
+      <div id="exchanges">
+        <template x-for="exchange in exchanges" :key="exchange.id">
+          <div class="exchange">
+            <p class="exchange-question" x-text="exchange.question"></p>
+            <div class="exchange-body">
+              <p class="exchange-loading" x-show="exchange.status === 'loading'">Thinking…</p>
+              <div x-show="exchange.status === 'streaming' || exchange.status === 'answered'">
+                <div class="exchange-answer" x-html="exchange.answerHtml"></div>
+                <p
+                  class="exchange-sources"
+                  x-show="exchange.status === 'answered' && exchange.sources.length"
+                >
+                  Sources:
+                  <template x-for="(source, index) in exchange.sources" :key="source.url">
+                    <span
+                      ><span x-show="index > 0">, </span
+                      ><a
+                        :href="source.url"
+                        target="_blank"
+                        rel="noopener"
+                        x-text="source.name"
+                      ></a
+                    ></span>
+                  </template>
+                </p>
+              </div>
+              <p class="exchange-error" x-show="exchange.status === 'error'" x-text="exchange.errorMessage"></p>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <form class="ask-form" @submit.prevent="submitQuestion()">
+        <input
+          type="text"
+          x-model="question"
+          placeholder="Ask a question"
+          required
+          :disabled="submitting"
+          x-ref="questionInput"
+        />
+        <button type="submit" :disabled="submitting">Ask</button>
+      </form>
     </div>
 
-    <p>Ask a question about this workspace's uploaded documents.</p>
-
-    <div id="exchanges"></div>
-
-    <form id="ask-form" class="ask-form">
-      <input type="text" name="question" placeholder="Ask a question" required />
-      <button type="submit">Ask</button>
-    </form>
-
     <script>
-      const slug = window.location.pathname.split("/")[2];
-      const pathConversationId = window.location.pathname.split("/")[4] || null;
-      const workspaceNameEl = document.getElementById("workspace-name");
-      const exchangesEl = document.getElementById("exchanges");
-      const askForm = document.getElementById("ask-form");
-      const questionInput = askForm.querySelector('input[name="question"]');
-      const submitButton = askForm.querySelector('button[type="submit"]');
-      const newConversationBtn = document.getElementById("new-conversation-btn");
-      let conversationId = null;
-
-      workspaceNameEl.textContent = slug;
-      document.getElementById("tab-ask").href = "/w/" + slug + "/ask";
-      document.getElementById("tab-files").href = "/w/" + slug + "/feed/files";
-      document.getElementById("conversation-history-link").href =
-        "/w/" + slug + "/ask/conversations";
-
-      fetch("/api/workspaces/" + slug)
-        .then(async function (response) {
-          if (!response.ok) {
-            workspaceNameEl.textContent = "Workspace not found";
-            return;
-          }
-          const workspace = await response.json();
-          workspaceNameEl.textContent = workspace.name;
-        })
-        .catch(function () {
-          workspaceNameEl.textContent = "Workspace not found";
-        });
-
-      function updateNewConversationVisibility() {
-        newConversationBtn.hidden = exchangesEl.children.length === 0;
-      }
-
-      function createExchangeElement(question) {
-        const exchangeEl = document.createElement("div");
-        exchangeEl.className = "exchange";
-
-        const questionEl = document.createElement("p");
-        questionEl.className = "exchange-question";
-        questionEl.textContent = question;
-        exchangeEl.appendChild(questionEl);
-
-        const bodyEl = document.createElement("div");
-        bodyEl.className = "exchange-body";
-        exchangeEl.appendChild(bodyEl);
-
-        exchangesEl.appendChild(exchangeEl);
-        updateNewConversationVisibility();
-        return bodyEl;
-      }
-
-      function showLoading(bodyEl) {
-        bodyEl.textContent = "";
-        const loadingEl = document.createElement("p");
-        loadingEl.className = "exchange-loading";
-        loadingEl.textContent = "Thinking…";
-        bodyEl.appendChild(loadingEl);
-      }
-
       // Force every link markdown produces to open safely in a new tab,
       // regardless of what the LLM-generated markdown source specified.
       DOMPurify.addHook("afterSanitizeAttributes", function (node) {
@@ -118,47 +100,14 @@
       // user-uploaded PDF content), so it's untrusted. marked() only
       // parses markdown into HTML — it does not sanitize — so every
       // conversion is run through DOMPurify with a conservative allowlist
-      // before it's the one deliberate, sanitizer-guarded use of
-      // innerHTML on this page.
-      function renderMarkdown(container, text) {
+      // before the result is bound via x-html — the one deliberate,
+      // sanitizer-guarded use of raw HTML binding on this page.
+      function renderMarkdown(text) {
         const rawHtml = marked.parse(text);
-        const cleanHtml = DOMPurify.sanitize(rawHtml, {
+        return DOMPurify.sanitize(rawHtml, {
           ALLOWED_TAGS: MARKDOWN_ALLOWED_TAGS,
           ALLOWED_ATTR: MARKDOWN_ALLOWED_ATTR,
         });
-        container.innerHTML = cleanHtml;
-      }
-
-      function appendSources(bodyEl, sources) {
-        if (!sources || !sources.length) {
-          return;
-        }
-        const sourcesEl = document.createElement("p");
-        sourcesEl.className = "exchange-sources";
-        sourcesEl.appendChild(document.createTextNode("Sources: "));
-        sources.forEach(function (source, index) {
-          if (index > 0) {
-            sourcesEl.appendChild(document.createTextNode(", "));
-          }
-          const link = document.createElement("a");
-          link.href = source.url;
-          link.target = "_blank";
-          link.rel = "noopener";
-          link.textContent = source.name;
-          sourcesEl.appendChild(link);
-        });
-        bodyEl.appendChild(sourcesEl);
-      }
-
-      function showAnswer(bodyEl, answer, sources) {
-        bodyEl.textContent = "";
-
-        const answerEl = document.createElement("div");
-        answerEl.className = "exchange-answer";
-        renderMarkdown(answerEl, answer);
-        bodyEl.appendChild(answerEl);
-
-        appendSources(bodyEl, sources);
       }
 
       // Parses one SSE frame (everything between a "\n\n"-delimited chunk
@@ -185,186 +134,223 @@
 
       const ANSWER_RENDER_THROTTLE_MS = 80;
 
-      // Reads the SSE response body, rendering the answer as Markdown
-      // progressively (throttled) as "token" events arrive, and finishing
-      // with an authoritative re-render + sources once "done" arrives.
-      // The "done" event's answer is authoritative (not just the
-      // concatenation of streamed tokens) because the backend can
-      // canonicalize the final text (e.g. the "not found" answer) only
-      // once generation completes.
-      async function streamAnswer(bodyEl, response, isFirstQuestion) {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let answerEl = null;
-        let accumulated = "";
-        let lastRenderedAt = 0;
-        let sawToken = false;
+      function askPage() {
+        return {
+          slug: window.location.pathname.split("/")[2],
+          pathConversationId: window.location.pathname.split("/")[4] || null,
+          workspaceName: "",
+          exchanges: [],
+          question: "",
+          submitting: false,
+          conversationId: null,
+          nextExchangeId: 1,
 
-        function ensureAnswerEl() {
-          if (answerEl) {
-            return;
-          }
-          bodyEl.textContent = "";
-          answerEl = document.createElement("div");
-          answerEl.className = "exchange-answer";
-          bodyEl.appendChild(answerEl);
-        }
-
-        function renderThrottled(force) {
-          const now = Date.now();
-          if (!force && now - lastRenderedAt < ANSWER_RENDER_THROTTLE_MS) {
-            return;
-          }
-          lastRenderedAt = now;
-          renderMarkdown(answerEl, accumulated);
-        }
-
-        while (true) {
-          let chunk;
-          try {
-            chunk = await reader.read();
-          } catch (e) {
-            showError(bodyEl, "Something went wrong asking your question. Please try again.");
-            return;
-          }
-          if (chunk.done) {
-            break;
-          }
-          buffer += decoder.decode(chunk.value, { stream: true });
-
-          let separatorIndex;
-          while ((separatorIndex = buffer.indexOf("\n\n")) !== -1) {
-            const frame = buffer.slice(0, separatorIndex);
-            buffer = buffer.slice(separatorIndex + 2);
-            const parsed = parseSseFrame(frame);
-            if (!parsed) {
-              continue;
-            }
-
-            if (parsed.type === "token") {
-              sawToken = true;
-              ensureAnswerEl();
-              accumulated += parsed.data;
-              renderThrottled(false);
-            } else if (parsed.type === "done") {
-              ensureAnswerEl();
-              accumulated = parsed.data.answer;
-              renderThrottled(true);
-              appendSources(bodyEl, parsed.data.sources);
-              conversationId = parsed.data.conversation_id;
-              if (isFirstQuestion) {
-                window.history.replaceState({}, "", "/w/" + slug + "/ask/" + conversationId);
-              }
-              return;
-            } else if (parsed.type === "error") {
-              showError(
-                bodyEl,
-                parsed.data.detail || "Something went wrong answering your question. Please try again."
-              );
-              return;
-            }
-          }
-        }
-
-        // Connection ended without a "done"/"error" event.
-        if (!sawToken) {
-          showError(bodyEl, "Something went wrong asking your question. Please try again.");
-        }
-      }
-
-      function showError(bodyEl, message) {
-        bodyEl.textContent = "";
-        const errorEl = document.createElement("p");
-        errorEl.className = "exchange-error";
-        errorEl.textContent = message;
-        bodyEl.appendChild(errorEl);
-      }
-
-      function resetConversation() {
-        conversationId = null;
-        exchangesEl.textContent = "";
-        updateNewConversationVisibility();
-        window.history.replaceState({}, "", "/w/" + slug + "/ask");
-      }
-
-      newConversationBtn.addEventListener("click", function () {
-        resetConversation();
-      });
-
-      askForm.addEventListener("submit", async function (evt) {
-        evt.preventDefault();
-
-        const formData = new FormData(evt.target);
-        const question = formData.get("question");
-        const isFirstQuestion = conversationId === null;
-        askForm.reset();
-
-        const bodyEl = createExchangeElement(question);
-        showLoading(bodyEl);
-
-        if (conversationId) {
-          formData.set("conversation_id", conversationId);
-        }
-
-        questionInput.disabled = true;
-        submitButton.disabled = true;
-
-        try {
-          let response;
-          try {
-            response = await fetch("/api/w/" + slug + "/ask", {
-              method: "POST",
-              body: formData,
-            });
-          } catch (e) {
-            showError(bodyEl, "Something went wrong asking your question. Please try again.");
-            return;
-          }
-
-          if (!response.ok) {
-            let detail;
+          // Alpine auto-calls a component method literally named `init`
+          // on mount — no `x-init="init()"` needed on the root element
+          // (adding one too would run this twice, e.g. double-pushing
+          // every exchange in loadConversation()).
+          async init() {
+            this.workspaceName = this.slug;
             try {
-              detail = (await response.json()).detail;
-            } catch (e) {
-              // Non-JSON error body — fall back to statusText below.
-            }
-            showError(bodyEl, detail || response.statusText);
-            return;
-          }
-
-          await streamAnswer(bodyEl, response, isFirstQuestion);
-        } finally {
-          questionInput.disabled = false;
-          submitButton.disabled = false;
-          questionInput.focus();
-        }
-      });
-
-      function loadConversation(id) {
-        fetch("/api/w/" + slug + "/conversations/" + id)
-          .then(async function (response) {
-            if (!response.ok) {
-              return;
-            }
-            const conversation = await response.json();
-            conversationId = conversation.id;
-            conversation.exchanges.forEach(function (exchange) {
-              const bodyEl = createExchangeElement(exchange.question);
-              if (exchange.status === "answered") {
-                showAnswer(bodyEl, exchange.answer, exchange.sources);
-              } else if (exchange.status === "failed") {
-                showError(bodyEl, "This question could not be answered.");
+              const response = await fetch("/api/workspaces/" + this.slug);
+              if (!response.ok) {
+                this.workspaceName = "Workspace not found";
               } else {
-                showLoading(bodyEl);
+                const workspace = await response.json();
+                this.workspaceName = workspace.name;
               }
-            });
-          })
-          .catch(function () {});
-      }
+            } catch (e) {
+              this.workspaceName = "Workspace not found";
+            }
 
-      if (pathConversationId) {
-        loadConversation(pathConversationId);
+            if (this.pathConversationId) {
+              await this.loadConversation(this.pathConversationId);
+            }
+          },
+
+          async submitQuestion() {
+            const question = this.question;
+            const isFirstQuestion = this.conversationId === null;
+            this.question = "";
+
+            let exchange = {
+              id: this.nextExchangeId++,
+              question: question,
+              status: "loading",
+              answerHtml: "",
+              sources: [],
+              errorMessage: "",
+            };
+            this.exchanges.push(exchange);
+            // Re-fetch the pushed item from the reactive array: Alpine wraps
+            // it in a reactive proxy on push, and mutating the pre-push
+            // plain-object reference (the `exchange` local above) bypasses
+            // that proxy, so later mutations wouldn't trigger any DOM update.
+            exchange = this.exchanges[this.exchanges.length - 1];
+
+            const formData = new FormData();
+            formData.set("question", question);
+            if (this.conversationId) {
+              formData.set("conversation_id", this.conversationId);
+            }
+
+            this.submitting = true;
+            try {
+              let response;
+              try {
+                response = await fetch("/api/w/" + this.slug + "/ask", {
+                  method: "POST",
+                  body: formData,
+                });
+              } catch (e) {
+                exchange.status = "error";
+                exchange.errorMessage =
+                  "Something went wrong asking your question. Please try again.";
+                return;
+              }
+
+              if (!response.ok) {
+                let detail;
+                try {
+                  detail = (await response.json()).detail;
+                } catch (e) {
+                  // Non-JSON error body — fall back to statusText below.
+                }
+                exchange.status = "error";
+                exchange.errorMessage = detail || response.statusText;
+                return;
+              }
+
+              await this.streamAnswer(exchange, response, isFirstQuestion);
+            } finally {
+              this.submitting = false;
+              this.$nextTick(() => this.$refs.questionInput.focus());
+            }
+          },
+
+          // Reads the SSE response body, rendering the answer as Markdown
+          // progressively (throttled) as "token" events arrive, and finishing
+          // with an authoritative re-render + sources once "done" arrives.
+          // The "done" event's answer is authoritative (not just the
+          // concatenation of streamed tokens) because the backend can
+          // canonicalize the final text (e.g. the "not found" answer) only
+          // once generation completes.
+          async streamAnswer(exchange, response, isFirstQuestion) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            let accumulated = "";
+            let lastRenderedAt = 0;
+            let sawToken = false;
+
+            const renderThrottled = (force) => {
+              const now = Date.now();
+              if (!force && now - lastRenderedAt < ANSWER_RENDER_THROTTLE_MS) {
+                return;
+              }
+              lastRenderedAt = now;
+              exchange.answerHtml = renderMarkdown(accumulated);
+            };
+
+            while (true) {
+              let chunk;
+              try {
+                chunk = await reader.read();
+              } catch (e) {
+                exchange.status = "error";
+                exchange.errorMessage =
+                  "Something went wrong asking your question. Please try again.";
+                return;
+              }
+              if (chunk.done) {
+                break;
+              }
+              buffer += decoder.decode(chunk.value, { stream: true });
+
+              let separatorIndex;
+              while ((separatorIndex = buffer.indexOf("\n\n")) !== -1) {
+                const frame = buffer.slice(0, separatorIndex);
+                buffer = buffer.slice(separatorIndex + 2);
+                const parsed = parseSseFrame(frame);
+                if (!parsed) {
+                  continue;
+                }
+
+                if (parsed.type === "token") {
+                  sawToken = true;
+                  exchange.status = "streaming";
+                  accumulated += parsed.data;
+                  renderThrottled(false);
+                } else if (parsed.type === "done") {
+                  accumulated = parsed.data.answer;
+                  renderThrottled(true);
+                  exchange.sources = parsed.data.sources || [];
+                  exchange.status = "answered";
+                  this.conversationId = parsed.data.conversation_id;
+                  if (isFirstQuestion) {
+                    window.history.replaceState(
+                      {},
+                      "",
+                      "/w/" + this.slug + "/ask/" + this.conversationId
+                    );
+                  }
+                  return;
+                } else if (parsed.type === "error") {
+                  exchange.status = "error";
+                  exchange.errorMessage =
+                    parsed.data.detail ||
+                    "Something went wrong answering your question. Please try again.";
+                  return;
+                }
+              }
+            }
+
+            // Connection ended without a "done"/"error" event.
+            if (!sawToken) {
+              exchange.status = "error";
+              exchange.errorMessage =
+                "Something went wrong asking your question. Please try again.";
+            }
+          },
+
+          resetConversation() {
+            this.conversationId = null;
+            this.exchanges = [];
+            window.history.replaceState({}, "", "/w/" + this.slug + "/ask");
+          },
+
+          async loadConversation(id) {
+            try {
+              const response = await fetch("/api/w/" + this.slug + "/conversations/" + id);
+              if (!response.ok) {
+                return;
+              }
+              const conversation = await response.json();
+              this.conversationId = conversation.id;
+              conversation.exchanges.forEach((ex) => {
+                const exchange = {
+                  id: this.nextExchangeId++,
+                  question: ex.question,
+                  status: "loading",
+                  answerHtml: "",
+                  sources: [],
+                  errorMessage: "",
+                };
+                if (ex.status === "answered") {
+                  exchange.status = "answered";
+                  exchange.answerHtml = renderMarkdown(ex.answer);
+                  exchange.sources = ex.sources || [];
+                } else if (ex.status === "failed") {
+                  exchange.status = "error";
+                  exchange.errorMessage = "This question could not be answered.";
+                }
+                this.exchanges.push(exchange);
+              });
+            } catch (e) {
+              // leave exchanges empty
+            }
+          },
+        };
       }
     </script>
 

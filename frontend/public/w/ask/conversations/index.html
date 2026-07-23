@@ -7,79 +7,71 @@
   <body>
     <!--#include virtual="/partials/nav.html" -->
 
-    <h1><span id="workspace-name"></span></h1>
+    <div x-data="conversationsPage()">
+      <h1><span x-text="workspaceName"></span></h1>
 
-    <nav class="workspace-tabs">
-      <a id="tab-ask" href="#" class="active" aria-current="page">Ask</a>
-      <a id="tab-files" href="#">Content</a>
-    </nav>
+      <nav class="workspace-tabs">
+        <a :href="'/w/' + slug + '/ask'" class="active" aria-current="page">Ask</a>
+        <a :href="'/w/' + slug + '/feed/files'">Content</a>
+      </nav>
 
-    <h2>Past conversations</h2>
+      <h2>Past conversations</h2>
 
-    <div id="conversation-list"></div>
+      <div id="conversation-list">
+        <p x-show="loaded && conversations.length === 0">
+          No conversations yet. Ask a question to start one.
+        </p>
+        <ul x-show="conversations.length > 0">
+          <template x-for="conversation in conversations" :key="conversation.id">
+            <li>
+              <a :href="'/w/' + slug + '/ask/' + conversation.id" x-text="conversation.title"></a>
+              <span
+                class="exchange-sources"
+                x-text="' — ' + new Date(conversation.created_at).toLocaleString()"
+              ></span>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </div>
 
     <script>
-      const slug = window.location.pathname.split("/")[2];
-      const workspaceNameEl = document.getElementById("workspace-name");
-      const listEl = document.getElementById("conversation-list");
+      function conversationsPage() {
+        return {
+          slug: window.location.pathname.split("/")[2],
+          workspaceName: "",
+          conversations: [],
+          loaded: false,
+          // Alpine auto-calls a component method literally named `init`
+          // on mount — no `x-init="init()"` needed on the root element
+          // (adding one too would run this twice).
+          async init() {
+            this.workspaceName = this.slug;
+            try {
+              const response = await fetch("/api/workspaces/" + this.slug);
+              if (!response.ok) {
+                this.workspaceName = "Workspace not found";
+              } else {
+                const workspace = await response.json();
+                this.workspaceName = workspace.name;
+              }
+            } catch (e) {
+              this.workspaceName = "Workspace not found";
+            }
 
-      workspaceNameEl.textContent = slug;
-      document.getElementById("tab-ask").href = "/w/" + slug + "/ask";
-      document.getElementById("tab-files").href = "/w/" + slug + "/feed/files";
-
-      fetch("/api/workspaces/" + slug)
-        .then(async function (response) {
-          if (!response.ok) {
-            workspaceNameEl.textContent = "Workspace not found";
-            return;
-          }
-          const workspace = await response.json();
-          workspaceNameEl.textContent = workspace.name;
-        })
-        .catch(function () {
-          workspaceNameEl.textContent = "Workspace not found";
-        });
-
-      function renderConversations(conversations) {
-        listEl.textContent = "";
-
-        if (!conversations.length) {
-          const emptyEl = document.createElement("p");
-          emptyEl.textContent = "No conversations yet. Ask a question to start one.";
-          listEl.appendChild(emptyEl);
-          return;
-        }
-
-        const ul = document.createElement("ul");
-        conversations.forEach(function (conversation) {
-          const li = document.createElement("li");
-          const link = document.createElement("a");
-          link.href = "/w/" + slug + "/ask/" + conversation.id;
-          link.textContent = conversation.title;
-          li.appendChild(link);
-
-          const dateEl = document.createElement("span");
-          dateEl.className = "exchange-sources";
-          dateEl.textContent = " — " + new Date(conversation.created_at).toLocaleString();
-          li.appendChild(dateEl);
-
-          ul.appendChild(li);
-        });
-        listEl.appendChild(ul);
+            try {
+              const response = await fetch("/api/w/" + this.slug + "/conversations");
+              if (response.ok) {
+                const body = await response.json();
+                this.conversations = body.data || [];
+              }
+            } catch (e) {
+              // leave conversations empty
+            }
+            this.loaded = true;
+          },
+        };
       }
-
-      fetch("/api/w/" + slug + "/conversations")
-        .then(async function (response) {
-          if (!response.ok) {
-            renderConversations([]);
-            return;
-          }
-          const body = await response.json();
-          renderConversations(body.data || []);
-        })
-        .catch(function () {
-          renderConversations([]);
-        });
     </script>
 
     <!--#include virtual="/partials/footer.html" -->

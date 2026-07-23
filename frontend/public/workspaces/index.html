@@ -14,11 +14,24 @@
 
     <p><a href="/workspaces/new">Create a new workspace</a></p>
 
-    <ul id="workspace-list"></ul>
-    <p id="empty-message" hidden>
-      No workspaces yet. <a href="/workspaces/new">Create one</a> to get
-      started.
-    </p>
+    <div x-data="workspacesPage()" x-init="load()">
+      <ul id="workspace-list">
+        <template x-for="workspace in workspaces" :key="workspace.id">
+          <li>
+            <a :href="'/w/' + workspace.slug + '/ask'" x-text="workspace.name"></a>
+            <div
+              class="workspace-description"
+              x-show="workspace.descriptionHtml"
+              x-html="workspace.descriptionHtml"
+            ></div>
+          </li>
+        </template>
+      </ul>
+      <p id="empty-message" x-show="loaded && workspaces.length === 0">
+        No workspaces yet. <a href="/workspaces/new">Create one</a> to get
+        started.
+      </p>
+    </div>
 
     <script>
       // Force every link markdown produces to open safely in a new tab,
@@ -48,42 +61,33 @@
       // A workspace description is user-supplied, so it's untrusted.
       // marked() only parses markdown into HTML — it does not sanitize —
       // so every conversion is run through DOMPurify with a conservative
-      // allowlist before it's used with innerHTML.
-      function renderMarkdown(container, text) {
+      // allowlist before the result is bound via x-html.
+      function renderMarkdown(text) {
         const rawHtml = marked.parse(text);
-        const cleanHtml = DOMPurify.sanitize(rawHtml, {
+        return DOMPurify.sanitize(rawHtml, {
           ALLOWED_TAGS: MARKDOWN_ALLOWED_TAGS,
           ALLOWED_ATTR: MARKDOWN_ALLOWED_ATTR,
         });
-        container.innerHTML = cleanHtml;
       }
 
-      fetch("/api/workspaces")
-        .then((res) => res.json())
-        .then((workspaces) => {
-          if (!workspaces.length) {
-            document.getElementById("empty-message").hidden = false;
-            return;
-          }
-
-          const list = document.getElementById("workspace-list");
-          workspaces.forEach((workspace) => {
-            const li = document.createElement("li");
-            const a = document.createElement("a");
-            a.href = "/w/" + workspace.slug + "/ask";
-            a.textContent = workspace.name;
-            li.appendChild(a);
-
-            if (workspace.description) {
-              const descriptionEl = document.createElement("div");
-              descriptionEl.className = "workspace-description";
-              renderMarkdown(descriptionEl, workspace.description);
-              li.appendChild(descriptionEl);
-            }
-
-            list.appendChild(li);
-          });
-        });
+      function workspacesPage() {
+        return {
+          workspaces: [],
+          loaded: false,
+          async load() {
+            const response = await fetch("/api/workspaces");
+            const workspaces = await response.json();
+            this.workspaces = workspaces.map(function (workspace) {
+              return Object.assign({}, workspace, {
+                descriptionHtml: workspace.description
+                  ? renderMarkdown(workspace.description)
+                  : "",
+              });
+            });
+            this.loaded = true;
+          },
+        };
+      }
     </script>
 
     <!--#include virtual="/partials/footer.html" -->
