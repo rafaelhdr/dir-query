@@ -38,6 +38,20 @@ Copy `.env.example` to `.env` to override the exposed ports.
 
 ### Working across `wt` worktrees
 
+To create a new worktree (e.g. when asked to do work "in a new worktree"),
+run from the repo root:
+
+```bash
+wt switch --create <kebab-case-branch-name>
+```
+
+This creates the branch and switches into the new worktree in one step —
+not `wt <branch-name>` directly, which is not a valid form. This user's
+`~/.config/worktrunk/config.toml` overrides the default layout so worktrees
+land at `<repo>/.worktrees/<sanitized-branch>` instead of a sibling
+directory; a teammate without that override gets worktrunk's default
+sibling-directory layout instead.
+
 Each worktree needs its own `.env`, `secrets/*.txt`, and (ideally) a warm
 `backend/data/hf-cache/` to run `docker compose up`. `.config/wt.toml`'s
 `post-start` hook runs `wt step copy-ignored` automatically whenever a new
