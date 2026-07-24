@@ -42,6 +42,7 @@
       <nav class="workspace-tabs">
         <a :href="'/w/' + slug + '/ask'" class="active" aria-current="page">Ask</a>
         <a :href="'/w/' + slug + '/feed/files'">Content</a>
+        <a x-show="canEdit" :href="'/w/' + slug + '/settings'">Settings</a>
       </nav>
 
       <p class="page-intro">Ask a question about this workspace's uploaded documents.</p>
@@ -172,6 +173,7 @@
           slug: window.location.pathname.split("/")[2],
           pathConversationId: window.location.pathname.split("/")[4] || null,
           workspaceName: "",
+          canEdit: false,
           exchanges: [],
           question: "",
           submitting: false,
@@ -185,12 +187,13 @@
           async init() {
             this.workspaceName = this.slug;
             try {
-              const response = await fetch("/api/workspaces/" + this.slug);
+              const response = await Auth.fetch("/api/workspaces/" + this.slug);
               if (!response.ok) {
                 this.workspaceName = "Workspace not found";
               } else {
                 const workspace = await response.json();
                 this.workspaceName = workspace.name;
+                this.canEdit = workspace.can_edit;
               }
             } catch (e) {
               this.workspaceName = "Workspace not found";

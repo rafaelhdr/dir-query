@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user_optional
+from app.api.deps import get_current_user_optional, require_workspace_edit_access
 from app.db.models import KEY_PROVIDERS, KEY_SOURCES, User, Workspace
 from app.db.session import get_session
 from app.schemas import WorkspacePublic
@@ -127,4 +127,75 @@ async def get_workspace(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
         )
+    return _workspace_public(workspace, current_user)
+
+
+@router.patch("/workspaces/{slug}")
+async def update_workspace(
+    name: str = Form(..., min_length=1),
+    description: str = Form(""),
+    key_source: str = Form("system"),
+    key_provider: str | None = Form(None),
+    api_key: str | None = Form(None),
+    workspace: Workspace = Depends(require_workspace_edit_access),
+    current_user: User | None = Depends(get_current_user_optional),
+    session: AsyncSession = Depends(get_session),
+) -> WorkspacePublic:
+    slug = slugify(name)
+    if not slug:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Name must contain at least one letter or number",
+        )
+
+    if key_source not in KEY_SOURCES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"key_source must be one of {KEY_SOURCES}",
+        )
+
+    if key_source == "dedicated":
+        if key_provider not in KEY_PROVIDERS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"A dedicated key requires a provider, one of {KEY_PROVIDERS}",
+            )
+        entering_dedicated = workspace.key_source != "dedicated"
+        changing_provider = workspace.key_provider != key_provider
+        credential_required = entering_dedicated or changing_provider
+        has_credential = bool(api_key and api_key.strip())
+        if credential_required and not has_credential:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A dedicated key requires a non-empty API key",
+            )
+        if has_credential:
+            try:
+                workspace.encrypted_api_key = crypto.encrypt(api_key.strip())
+            except RuntimeError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"Cannot store a dedicated API key: {exc}",
+                ) from exc
+        workspace.key_provider = key_provider
+    else:
+        key_provider = None
+        workspace.key_provider = None
+        workspace.encrypted_api_key = None
+
+    workspace.key_source = key_source
+    workspace.name = name
+    workspace.slug = slug
+    workspace.description = description
+
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A workspace named '{name}' already exists. Please choose a different name.",
+        ) from exc
+
+    await session.refresh(workspace)
     return _workspace_public(workspace, current_user)

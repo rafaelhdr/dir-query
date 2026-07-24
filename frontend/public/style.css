@@ -705,6 +705,14 @@ html[data-theme="light"] .origami-world {
   margin-top: 0.25rem;
 }
 
+.origami-world.origami-page .slug-warning {
+  color: var(--og-secondary);
+  font-size: 0.875rem;
+  border-left: 2px solid var(--og-accent-light);
+  padding-left: 0.75rem;
+  margin: -0.5rem 0 1rem;
+}
+
 /* Combined login/register page: two columns desktop (login left,
    register right), stacked mobile (login first — see max-width: 768px
    query below, same breakpoint as the hero/feature-row grids). */

@@ -1,17 +1,4 @@
-## Purpose
-
-The workspace-llm-key-selection capability lets a workspace owner choose,
-at workspace creation time or afterward via the workspace settings page,
-whether question-answering for that workspace uses the backend's shared
-LLM credentials (the `system` key source) or a dedicated credential the
-owner supplies for a chosen provider (the `dedicated` key source). A
-dedicated credential is encrypted at rest, never
-returned by the API, and used only for answering questions — not for
-document embedding, which continues to use the backend's globally
-configured `EMBED_PROVIDER`. Key configuration is visible only to the
-workspace owner.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: A workspace chooses between the system's shared LLM key and a dedicated key, changeable after creation
 The system SHALL let a workspace select a `key_source` of either `system`
@@ -48,82 +35,18 @@ any time, and MAY change the provider and/or credential while remaining
 - **THEN** the workspace's `key_source` becomes `system` and question-
   answering for that workspace uses the backend's shared LLM credentials
 
-### Requirement: A dedicated key requires both a provider and a non-empty credential
-The system SHALL reject workspace creation with a validation error when
-`key_source=dedicated` is requested without also supplying a provider
-(`gemini` or `minimax`) and a non-empty credential value.
+## REMOVED Requirements
 
-#### Scenario: Dedicated selected with no credential
-- **WHEN** a workspace creation request has `key_source=dedicated` and an
-  empty or missing credential
-- **THEN** the backend rejects the request with a clear validation error
-  and does not create the workspace
+### Requirement: A dedicated key choice is fixed at creation
+**Reason**: Superseded by the modified requirement above — `key_source`
+and `key_provider` can now be changed after creation via the workspace
+settings page, restricted to editors the same way other workspace edits
+are.
+**Migration**: No data migration needed; existing workspaces keep their
+current `key_source`/`key_provider`/credential unchanged until an editor
+explicitly edits them via the new settings page.
 
-#### Scenario: Dedicated selected with no provider
-- **WHEN** a workspace creation request has `key_source=dedicated` and no
-  provider selected
-- **THEN** the backend rejects the request with a clear validation error
-  and does not create the workspace
-
-### Requirement: A dedicated credential is encrypted at rest and never returned by the API
-The system SHALL encrypt a dedicated credential before storing it, using a
-key derived from a dedicated encryption secret (`WORKSPACE_KEY_ENCRYPTION_SECRET`),
-resolved the same way other credential secrets are resolved (a file-based
-secret preferred, with a plain environment variable fallback). The system
-SHALL NOT store the credential in plaintext, and SHALL NOT include the
-credential (plaintext or encrypted) in any API response.
-
-#### Scenario: Dedicated credential is stored encrypted
-- **WHEN** a workspace is created with a dedicated credential
-- **THEN** the value persisted to the database is the credential encrypted
-  with the configured encryption secret, not the plaintext value
-
-#### Scenario: Credential is never exposed via the API
-- **WHEN** any workspace endpoint returns a workspace that has a dedicated
-  credential configured
-- **THEN** the response does not include the credential in any form
-
-#### Scenario: Encryption secret missing when a dedicated key is submitted
-- **WHEN** a workspace creation request has `key_source=dedicated` and no
-  `WORKSPACE_KEY_ENCRYPTION_SECRET` is configured on the backend
-- **THEN** the backend responds with a clear configuration error and does
-  not create the workspace or crash the backend process
-
-### Requirement: Key configuration is visible only to the workspace owner
-The system SHALL include `key_source` and `key_provider` in a workspace
-response only when the requester can edit that workspace (per the
-`workspace-management` capability's `can_edit` computation); other
-requesters SHALL receive these fields as absent or null.
-
-#### Scenario: Owner sees their workspace's key configuration
-- **WHEN** the owner of a workspace (or anyone, for an ownerless workspace)
-  requests that workspace's details
-- **THEN** the response includes that workspace's `key_source` and, if
-  dedicated, its `key_provider`
-
-#### Scenario: Non-owner does not see key configuration
-- **WHEN** a user who is not the workspace's owner (or an unauthenticated
-  visitor, for an owned workspace) requests that workspace's details
-- **THEN** the response's `key_source` and `key_provider` fields are absent
-  or null
-
-### Requirement: A dedicated key is used only for answering questions, not for embedding
-The system SHALL use a workspace's dedicated key, when configured, only for
-generating answers via `/w/<slug>/ask`. Document embedding and indexing
-SHALL continue to use the backend's globally configured `EMBED_PROVIDER`
-regardless of a workspace's `key_source`.
-
-#### Scenario: Uploading a document to a dedicated-key workspace
-- **WHEN** a file is uploaded and indexed in a workspace with
-  `key_source=dedicated`
-- **THEN** the file is embedded using the backend's globally configured
-  `EMBED_PROVIDER`, not the workspace's dedicated key or provider
-
-#### Scenario: Asking a question in a dedicated-key workspace
-- **WHEN** a question is submitted to a workspace with
-  `key_source=dedicated` and a valid credential
-- **THEN** the answer is generated using that workspace's dedicated
-  provider and credential instead of the backend's shared LLM credentials
+## ADDED Requirements
 
 ### Requirement: Switching from a dedicated key to the system key discards the stored credential
 The system SHALL, when an editor changes a workspace's `key_source` from
@@ -178,4 +101,3 @@ leave the workspace's existing stored encrypted credential unchanged.
   non-empty credential
 - **THEN** the workspace's `key_provider` and stored encrypted credential
   are both updated to the new values
-</content>

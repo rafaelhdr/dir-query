@@ -318,3 +318,234 @@ def test_dedicated_api_key_is_encrypted_and_never_returned(
     assert encrypted is not None
     assert encrypted != "super-secret-key"
     assert crypto.decrypt(encrypted) == "super-secret-key"
+
+
+def test_editor_can_update_name_and_description(client: TestClient) -> None:
+    headers = _register(client)
+    client.post("/workspaces", data={"name": "Company X"}, headers=headers)
+
+    response = client.patch(
+        "/workspaces/company-x",
+        data={"name": "Acme Corporation", "description": "Legal docs"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "Acme Corporation"
+    assert body["slug"] == "acme-corporation"
+    assert body["description"] == "Legal docs"
+
+
+def test_rename_to_colliding_slug_is_rejected(client: TestClient) -> None:
+    headers = _register(client)
+    client.post("/workspaces", data={"name": "Company A"}, headers=headers)
+    client.post("/workspaces", data={"name": "Company B"}, headers=headers)
+
+    response = client.patch(
+        "/workspaces/company-b", data={"name": "Company A"}, headers=headers
+    )
+
+    assert response.status_code == 409
+    unchanged = client.get("/workspaces/company-b")
+    assert unchanged.status_code == 200
+    assert unchanged.json()["name"] == "Company B"
+
+
+def test_non_owner_cannot_update_workspace(client: TestClient) -> None:
+    owner_headers = _register(client, "owner@example.com")
+    other_headers = _register(client, "other@example.com")
+    client.post("/workspaces", data={"name": "Company X"}, headers=owner_headers)
+
+    response = client.patch(
+        "/workspaces/company-x", data={"name": "Renamed"}, headers=other_headers
+    )
+
+    assert response.status_code == 403
+    unchanged = client.get("/workspaces/company-x")
+    assert unchanged.json()["name"] == "Company X"
+
+
+def test_unauthenticated_visitor_cannot_update_owned_workspace(
+    client: TestClient,
+) -> None:
+    headers = _register(client)
+    client.post("/workspaces", data={"name": "Company X"}, headers=headers)
+
+    response = client.patch("/workspaces/company-x", data={"name": "Renamed"})
+
+    assert response.status_code == 401
+    unchanged = client.get("/workspaces/company-x")
+    assert unchanged.json()["name"] == "Company X"
+
+
+def test_anyone_can_update_ownerless_workspace(client: TestClient) -> None:
+    client.post("/workspaces", data={"name": "Company X"})
+
+    response = client.patch("/workspaces/company-x", data={"name": "Renamed"})
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Renamed"
+
+
+def test_switch_from_system_to_dedicated_requires_credential(
+    client: TestClient, monkeypatch
+) -> None:
+    monkeypatch.setattr(crypto, "WORKSPACE_KEY_ENCRYPTION_SECRET", "test-secret")
+    headers = _register(client)
+    client.post("/workspaces", data={"name": "Company X"}, headers=headers)
+
+    missing_credential = client.patch(
+        "/workspaces/company-x",
+        data={"name": "Company X", "key_source": "dedicated", "key_provider": "gemini"},
+        headers=headers,
+    )
+    assert missing_credential.status_code == 400
+
+    with_credential = client.patch(
+        "/workspaces/company-x",
+        data={
+            "name": "Company X",
+            "key_source": "dedicated",
+            "key_provider": "gemini",
+            "api_key": "new-gemini-key",
+        },
+        headers=headers,
+    )
+    assert with_credential.status_code == 200
+    body = with_credential.json()
+    assert body["key_source"] == "dedicated"
+    assert body["key_provider"] == "gemini"
+
+
+def test_switch_from_dedicated_to_system_clears_stored_credential(
+    client: TestClient, monkeypatch
+) -> None:
+    monkeypatch.setattr(crypto, "WORKSPACE_KEY_ENCRYPTION_SECRET", "test-secret")
+    headers = _register(client)
+    client.post(
+        "/workspaces",
+        data={
+            "name": "Company X",
+            "key_source": "dedicated",
+            "key_provider": "gemini",
+            "api_key": "my-gemini-key",
+        },
+        headers=headers,
+    )
+
+    response = client.patch(
+        "/workspaces/company-x",
+        data={"name": "Company X", "key_source": "system"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["key_source"] == "system"
+    assert body["key_provider"] is None
+
+    async def _fetch_row() -> tuple[str | None, str | None]:
+        async with async_session_factory() as session:
+            result = await session.execute(
+                select(Workspace.key_provider, Workspace.encrypted_api_key).where(
+                    Workspace.slug == "company-x"
+                )
+            )
+            return result.one()
+
+    key_provider, encrypted_api_key = asyncio.run(_fetch_row())
+    assert key_provider is None
+    assert encrypted_api_key is None
+
+
+def test_staying_dedicated_same_provider_blank_credential_keeps_existing_key(
+    client: TestClient, monkeypatch
+) -> None:
+    monkeypatch.setattr(crypto, "WORKSPACE_KEY_ENCRYPTION_SECRET", "test-secret")
+    headers = _register(client)
+    client.post(
+        "/workspaces",
+        data={
+            "name": "Company X",
+            "key_source": "dedicated",
+            "key_provider": "gemini",
+            "api_key": "original-key",
+        },
+        headers=headers,
+    )
+
+    response = client.patch(
+        "/workspaces/company-x",
+        data={
+            "name": "Company X",
+            "description": "updated description",
+            "key_source": "dedicated",
+            "key_provider": "gemini",
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["description"] == "updated description"
+
+    async def _fetch_encrypted_key() -> str | None:
+        async with async_session_factory() as session:
+            result = await session.execute(
+                select(Workspace.encrypted_api_key).where(Workspace.slug == "company-x")
+            )
+            return result.scalar_one()
+
+    encrypted = asyncio.run(_fetch_encrypted_key())
+    assert encrypted is not None
+    assert crypto.decrypt(encrypted) == "original-key"
+
+
+def test_staying_dedicated_changing_provider_blank_credential_is_rejected(
+    client: TestClient, monkeypatch
+) -> None:
+    monkeypatch.setattr(crypto, "WORKSPACE_KEY_ENCRYPTION_SECRET", "test-secret")
+    headers = _register(client)
+    client.post(
+        "/workspaces",
+        data={
+            "name": "Company X",
+            "key_source": "dedicated",
+            "key_provider": "gemini",
+            "api_key": "original-key",
+        },
+        headers=headers,
+    )
+
+    response = client.patch(
+        "/workspaces/company-x",
+        data={
+            "name": "Company X",
+            "key_source": "dedicated",
+            "key_provider": "minimax",
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 400
+    unchanged = client.get("/workspaces/company-x", headers=headers)
+    assert unchanged.json()["key_provider"] == "gemini"
+
+
+def test_resubmitting_identical_values_succeeds(client: TestClient) -> None:
+    headers = _register(client)
+    client.post(
+        "/workspaces", data={"name": "Company X", "description": "docs"}, headers=headers
+    )
+
+    response = client.patch(
+        "/workspaces/company-x",
+        data={"name": "Company X", "description": "docs"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "Company X"
+    assert body["slug"] == "company-x"
+    assert body["description"] == "docs"
