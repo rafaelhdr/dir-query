@@ -49,12 +49,12 @@
     return {
       error: "",
       submitting: false,
-      submit: async function (url, event, onSuccess) {
+      submit: async function (url, event, onSuccess, method) {
         this.error = "";
         this.submitting = true;
         try {
           var response = await Auth.fetch(url, {
-            method: "POST",
+            method: method || "POST",
             body: new FormData(event.target),
           });
           var data;

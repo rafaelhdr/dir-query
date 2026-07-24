@@ -1,0 +1,196 @@
+<!doctype html>
+<!-- Origami Geometric — restrained tier (see DESIGN.md). -->
+<html lang="en">
+  <head>
+    <!--#set var="page_title" value="Settings — Dir Query" -->
+    <!--#include virtual="/partials/head.html" -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="origami-world origami-page">
+    <!--#include virtual="/partials/nav.html" -->
+
+    <div x-data="settingsPage()">
+      <h1><span x-text="workspaceName"></span></h1>
+
+      <nav class="workspace-tabs">
+        <a :href="'/w/' + slug + '/ask'">Ask</a>
+        <a :href="'/w/' + slug + '/feed/files'">Content</a>
+        <a :href="'/w/' + slug + '/settings'" class="active" aria-current="page">Settings</a>
+      </nav>
+
+      <p class="page-intro">Edit this workspace's name, description, and LLM key configuration.</p>
+
+      <div id="form-error" x-text="error"></div>
+
+      <form x-show="loaded" id="settings-form" @submit.prevent="save($event)">
+        <p>
+          <label>
+            Name
+            <input type="text" name="name" required x-model="name" />
+          </label>
+        </p>
+        <p class="slug-warning" x-show="slugWillChange">
+          Changing the name will change this workspace's URL. The current
+          link (<code x-text="'/w/' + originalSlug + '/…'"></code>) will
+          stop working once you save — update anything that references it,
+          such as a link in a blog post, or, in the future, an embedded
+          widget.
+        </p>
+        <p>
+          <label>
+            Description
+            <textarea name="description" rows="3" x-model="description"></textarea>
+          </label>
+        </p>
+
+        <fieldset>
+          <legend>API key</legend>
+
+          <p>
+            <label>
+              <input type="radio" name="key_source" value="system" x-model="keySource" />
+              System API keys
+            </label>
+            <br />
+            <small
+              >Uses this deployment's shared API keys. Free, but limited
+              &mdash; it might fail under heavy use.</small
+            >
+          </p>
+          <p>
+            <label>
+              <input type="radio" name="key_source" value="dedicated" x-model="keySource" />
+              Dedicated
+            </label>
+            <br />
+            <small
+              >Use your own API key. You provide the key, and usage is
+              charged to your own account.</small
+            >
+          </p>
+
+          <div id="dedicated-key-fields" x-show="isDedicated">
+            <p>
+              <label>
+                <input type="radio" name="key_provider" value="gemini" x-model="keyProvider" />
+                Gemini
+              </label>
+              <label>
+                <input type="radio" name="key_provider" value="minimax" x-model="keyProvider" />
+                MiniMax
+              </label>
+            </p>
+            <p>
+              <label id="api-key-label">
+                <span x-text="apiKeyLabel"></span>
+                <input
+                  type="password"
+                  name="api_key"
+                  autocomplete="off"
+                  :required="credentialRequired"
+                />
+              </label>
+              <small x-show="!credentialRequired">Leave blank to keep the current stored key.</small>
+            </p>
+          </div>
+        </fieldset>
+
+        <button type="submit" class="origami-button-primary" :disabled="submitting">Save</button>
+      </form>
+    </div>
+
+    <script>
+      function slugify(value) {
+        return value
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+      }
+
+      function settingsPage() {
+        // Getters must be defined directly on the returned object literal —
+        // see the same note in workspaces/new/index.html.
+        return {
+          ...apiForm(),
+          slug: window.location.pathname.split("/")[2],
+          workspaceName: "",
+          loaded: false,
+          name: "",
+          description: "",
+          keySource: "system",
+          keyProvider: "gemini",
+          originalSlug: "",
+          originalKeySource: "system",
+          originalKeyProvider: null,
+          get isDedicated() {
+            return this.keySource === "dedicated";
+          },
+          get apiKeyLabel() {
+            return this.keyProvider === "minimax" ? "MiniMax API key" : "Google API key";
+          },
+          get credentialRequired() {
+            if (!this.isDedicated) return false;
+            if (this.originalKeySource !== "dedicated") return true;
+            return this.keyProvider !== this.originalKeyProvider;
+          },
+          get slugWillChange() {
+            return this.loaded && slugify(this.name) !== this.originalSlug;
+          },
+          // Alpine auto-calls a component method literally named `init`
+          // on mount — no `x-init="init()"` needed on the root element
+          // (adding one too would run this twice).
+          async init() {
+            this.workspaceName = this.slug;
+            try {
+              const response = await Auth.fetch("/api/workspaces/" + this.slug);
+              if (!response.ok) {
+                this.workspaceName = "Workspace not found";
+                return;
+              }
+              const workspace = await response.json();
+              if (!workspace.can_edit) {
+                window.location = "/w/" + this.slug + "/feed/files";
+                return;
+              }
+              this.workspaceName = workspace.name;
+              this.name = workspace.name;
+              this.description = workspace.description;
+              this.originalSlug = workspace.slug;
+              this.keySource = workspace.key_source || "system";
+              this.keyProvider = workspace.key_provider || "gemini";
+              this.originalKeySource = workspace.key_source || "system";
+              this.originalKeyProvider = workspace.key_provider || null;
+              this.loaded = true;
+            } catch (e) {
+              this.workspaceName = "Workspace not found";
+            }
+          },
+          async save(event) {
+            await this.submit(
+              "/api/workspaces/" + this.slug,
+              event,
+              (data) => {
+                if (data.slug !== this.slug) {
+                  window.location = "/w/" + data.slug + "/settings";
+                  return;
+                }
+                this.originalSlug = data.slug;
+                this.originalKeySource = data.key_source || "system";
+                this.originalKeyProvider = data.key_provider || null;
+              },
+              "PATCH"
+            );
+          },
+        };
+      }
+    </script>
+
+    <!--#include virtual="/partials/footer.html" -->
+  </body>
+</html>

@@ -20,6 +20,7 @@
       <nav class="workspace-tabs">
         <a :href="'/w/' + slug + '/ask'">Ask</a>
         <a :href="'/w/' + slug + '/feed/files'" class="active" aria-current="page">Content</a>
+        <a x-show="canEdit" :href="'/w/' + slug + '/settings'">Settings</a>
       </nav>
 
       <p class="page-intro">Upload and manage the documents this workspace can search.</p>
