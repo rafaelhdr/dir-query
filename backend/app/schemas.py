@@ -12,6 +12,7 @@ class WorkspacePublic(BaseModel):
     description: str
     created_at: datetime.datetime
     can_edit: bool
+    has_owner: bool
     key_source: str | None = None
     key_provider: str | None = None
 

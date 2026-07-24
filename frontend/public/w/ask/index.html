@@ -62,7 +62,52 @@
         >
           See past conversations
         </a>
+        <button
+          type="button"
+          class="origami-button-secondary"
+          @click="openWidgetModal()"
+        >
+          Make a widget for your website
+        </button>
       </div>
+
+      <dialog class="widget-modal" x-ref="widgetModal" @close="copyButtonLabel = 'Copy to clipboard'">
+        <h2>Make a widget for your website</h2>
+        <p>
+          Paste this snippet into your website's HTML to embed a live Q&amp;A
+          widget for this workspace.
+        </p>
+        <fieldset class="widget-modal-mode">
+          <legend>Embed mode</legend>
+          <label>
+            <input type="radio" name="widget-embed-mode" value="widget" x-model="embedMode" />
+            Widget (floating launcher)
+          </label>
+          <label>
+            <input type="radio" name="widget-embed-mode" value="inline" x-model="embedMode" />
+            Inline (embedded in your page)
+          </label>
+        </fieldset>
+        <label class="widget-modal-empty-state-label" for="widget-empty-state-text">
+          Placeholder text (optional)
+        </label>
+        <input
+          type="text"
+          id="widget-empty-state-text"
+          class="widget-modal-empty-state-input"
+          x-model="emptyStateText"
+          placeholder="Ask a question to get started."
+        />
+        <pre class="widget-snippet" x-text="widgetSnippet"></pre>
+        <p class="widget-modal-warning" x-show="!hasOwner">
+          This workspace has no owner, so it may be removed during a future
+          cleanup pass — if that happens, this widget will stop working.
+        </p>
+        <div class="widget-modal-actions">
+          <button type="button" class="origami-button-primary" @click="copyWidgetSnippet()" x-text="copyButtonLabel"></button>
+          <button type="button" class="origami-button-secondary" @click="$refs.widgetModal.close()">Close</button>
+        </div>
+      </dialog>
 
       <div id="exchanges">
         <template x-for="(exchange, index) in exchanges" :key="exchange.id">
@@ -174,11 +219,15 @@
           pathConversationId: window.location.pathname.split("/")[4] || null,
           workspaceName: "",
           canEdit: false,
+          hasOwner: false,
           exchanges: [],
           question: "",
           submitting: false,
           conversationId: null,
           nextExchangeId: 1,
+          copyButtonLabel: "Copy to clipboard",
+          embedMode: "widget",
+          emptyStateText: "",
 
           // Alpine auto-calls a component method literally named `init`
           // on mount — no `x-init="init()"` needed on the root element
@@ -194,6 +243,7 @@
                 const workspace = await response.json();
                 this.workspaceName = workspace.name;
                 this.canEdit = workspace.can_edit;
+                this.hasOwner = workspace.has_owner;
               }
             } catch (e) {
               this.workspaceName = "Workspace not found";
@@ -353,6 +403,60 @@
             this.conversationId = null;
             this.exchanges = [];
             window.history.replaceState({}, "", "/w/" + this.slug + "/ask");
+          },
+
+          escapeAttr(value) {
+            return String(value)
+              .replaceAll("&", "&amp;")
+              .replaceAll('"', "&quot;")
+              .replaceAll("<", "&lt;")
+              .replaceAll(">", "&gt;");
+          },
+
+          get widgetSnippet() {
+            const scriptSrc = window.location.origin + "/widget.js";
+            const trimmedEmptyStateText = this.emptyStateText.trim();
+            const emptyStateAttr = trimmedEmptyStateText
+              ? ' data-empty-state-text="' + this.escapeAttr(trimmedEmptyStateText) + '"'
+              : "";
+            if (this.embedMode === "inline") {
+              return (
+                '<div id="dirquery-widget"></div>\n' +
+                '<script src="' +
+                scriptSrc +
+                '" data-workspace="' +
+                this.slug +
+                '" data-mode="inline" data-target="dirquery-widget"' +
+                emptyStateAttr +
+                "></" +
+                "script>"
+              );
+            }
+            return (
+              '<script src="' +
+              scriptSrc +
+              '" data-workspace="' +
+              this.slug +
+              '" data-position="bottom-right"' +
+              emptyStateAttr +
+              "></" +
+              "script>"
+            );
+          },
+
+          openWidgetModal() {
+            this.embedMode = "widget";
+            this.emptyStateText = "";
+            this.$refs.widgetModal.showModal();
+          },
+
+          async copyWidgetSnippet() {
+            try {
+              await navigator.clipboard.writeText(this.widgetSnippet);
+              this.copyButtonLabel = "Copied!";
+            } catch (e) {
+              this.copyButtonLabel = "Copy failed — select and copy manually";
+            }
           },
 
           async loadConversation(id) {

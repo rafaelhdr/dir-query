@@ -151,6 +151,46 @@ def test_anyone_sees_can_edit_true_for_ownerless_workspace(
     assert response.json()["can_edit"] is True
 
 
+def test_owner_sees_has_owner_true(client: TestClient) -> None:
+    headers = _register(client)
+    client.post("/workspaces", data={"name": "Company X"}, headers=headers)
+
+    response = client.get("/workspaces/company-x", headers=headers)
+
+    assert response.json()["has_owner"] is True
+
+
+def test_non_owner_sees_has_owner_true_for_owned_workspace(client: TestClient) -> None:
+    owner_headers = _register(client, "owner@example.com")
+    other_headers = _register(client, "other@example.com")
+    client.post("/workspaces", data={"name": "Company X"}, headers=owner_headers)
+
+    response = client.get("/workspaces/company-x", headers=other_headers)
+
+    assert response.json()["has_owner"] is True
+
+
+def test_anonymous_visitor_sees_has_owner_true_for_owned_workspace(
+    client: TestClient,
+) -> None:
+    owner_headers = _register(client)
+    client.post("/workspaces", data={"name": "Company X"}, headers=owner_headers)
+
+    response = client.get("/workspaces/company-x")
+
+    assert response.json()["has_owner"] is True
+
+
+def test_anyone_sees_has_owner_false_for_ownerless_workspace(
+    client: TestClient,
+) -> None:
+    client.post("/workspaces", data={"name": "Company X"})
+
+    response = client.get("/workspaces/company-x")
+
+    assert response.json()["has_owner"] is False
+
+
 def test_owner_identity_never_appears_in_responses(client: TestClient) -> None:
     headers = _register(client)
     create_response = client.post(

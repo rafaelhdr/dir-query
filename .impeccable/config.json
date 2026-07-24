@@ -1,7 +1,9 @@
 {
   "detector": {
     "ignoreRules": [],
-    "ignoreFiles": [],
+    "ignoreFiles": [
+      "frontend/public/widget.js"
+    ],
     "ignoreValues": [
       {
         "rule": "single-font",

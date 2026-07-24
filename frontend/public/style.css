@@ -475,6 +475,116 @@ html[data-theme="light"] .origami-world {
   cursor: not-allowed;
 }
 
+/* Widget modal: the "Make a widget for your website" snippet dialog.
+   Native <dialog> for built-in focus trapping/Esc-to-close/top-layer
+   stacking; styled like the rest of this page's own chrome (it belongs to
+   this site, not to the neutral widget it generates for third-party
+   sites — see the add-website-widget change's design.md). */
+.origami-world .widget-modal {
+  background: var(--og-bg);
+  color: var(--og-ink);
+  border: 1px solid var(--og-border);
+  clip-path: var(--og-cut-lg);
+  box-shadow: var(--og-shadow);
+  padding: 1.5rem;
+  max-width: 32rem;
+  width: calc(100% - 2rem);
+}
+
+.origami-world .widget-modal::backdrop {
+  background: rgba(26, 26, 26, 0.5);
+}
+
+.origami-world .widget-modal h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.origami-world .widget-modal p {
+  color: var(--og-secondary);
+  margin: 0 0 1rem;
+}
+
+.origami-world .widget-modal-mode {
+  border: 1px solid var(--og-border);
+  padding: 0.75rem 1rem;
+  margin: 0 0 1rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.origami-world .widget-modal-mode legend {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--og-secondary);
+  padding: 0 0.25rem;
+}
+
+.origami-world .widget-modal-mode label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--og-ink);
+}
+
+.origami-world .widget-modal-empty-state-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--og-ink);
+  margin: 0 0 0.375rem;
+}
+
+.origami-world .widget-modal-empty-state-input {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--og-border);
+  border-radius: 0;
+  color: var(--og-ink);
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.4rem 0.1rem;
+  margin: 0 0 1rem;
+}
+
+.origami-world .widget-modal-empty-state-input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--og-accent-fill);
+}
+
+.origami-world .widget-modal-empty-state-input::placeholder {
+  color: var(--og-secondary);
+}
+
+.origami-world .widget-snippet {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
+  font-size: 0.9em;
+  color: var(--og-ink);
+  background: color-mix(in srgb, var(--og-ink) 6%, transparent);
+  padding: 0.75rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0 0 1rem;
+}
+
+.origami-world .widget-modal-warning {
+  color: var(--og-accent);
+  border-left: 3px solid var(--og-accent-fill);
+  padding-left: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.origami-world .widget-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
 /* ---- Every other page: restrained tier (Operate/Read mode) ---- */
 /* Workspaces, login/register, about/beta, conversations, files — all
    migrated to the same restrained intensity as the ask page: tokens and

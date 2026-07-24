@@ -30,6 +30,7 @@ def _workspace_public(
         description=workspace.description,
         created_at=workspace.created_at,
         can_edit=can_edit,
+        has_owner=workspace.owner_user_id is not None,
         key_source=workspace.key_source if can_edit else None,
         key_provider=workspace.key_provider if can_edit else None,
     )
