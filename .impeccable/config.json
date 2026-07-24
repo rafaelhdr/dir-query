@@ -1,0 +1,44 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "single-font",
+        "value": "*",
+        "files": [
+          "frontend/public/home/index.html",
+          "frontend/public/index.html",
+          "frontend/public/w/ask/index.html"
+        ],
+        "createdAt": "2026-07-23T13:05:29.142Z",
+        "reason": "User confirmed Poppins-only is intentional across both Origami surfaces; hierarchy comes from documented weight/size steps, not a second typeface"
+      },
+      {
+        "rule": "single-font",
+        "value": "*",
+        "files": [
+          "frontend/public/about/index.html",
+          "frontend/public/beta/index.html",
+          "frontend/public/login/index.html",
+          "frontend/public/register/index.html",
+          "frontend/public/w/ask/conversations/index.html",
+          "frontend/public/w/feed/files/index.html",
+          "frontend/public/workspaces/index.html",
+          "frontend/public/workspaces/new/index.html"
+        ],
+        "createdAt": "2026-07-23T15:55:53.723Z",
+        "reason": "User confirmed Poppins-only is intentional across the whole site; hierarchy comes from documented weight/size steps, not a second typeface"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "frontend/public/style.css"
+        ],
+        "createdAt": "2026-07-23T16:00:34.944Z",
+        "reason": "User confirmed the exchange-answer blockquote left-border is standard markdown quote styling inherited from the pre-Origami baseline, not a card/callout pattern"
+      }
+    ]
+  }
+}

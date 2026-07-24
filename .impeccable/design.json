@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-23T16:30:00Z",
+  "title": "Design System: Dir Query",
+  "extensions": {
+    "colorMeta": {
+      "coral": { "role": "primary", "displayName": "Coral", "canonical": "oklch(71% 0.181 23)", "tonalRamp": ["oklch(15% 0.092 23)", "oklch(25% 0.118 23)", "oklch(35% 0.143 23)", "oklch(45% 0.168 23)", "oklch(58% 0.161 23)", "oklch(70% 0.130 23)", "oklch(82% 0.100 23)", "oklch(93% 0.072 23)"] },
+      "coral-ink": { "role": "primary-on-light", "displayName": "Coral Ink (light-mode text variant)", "canonical": "oklch(55% 0.136 23)", "tonalRamp": ["oklch(15% 0.069 23)", "oklch(25% 0.088 23)", "oklch(35% 0.107 23)", "oklch(45% 0.126 23)", "oklch(58% 0.121 23)", "oklch(70% 0.098 23)", "oklch(82% 0.075 23)", "oklch(93% 0.054 23)"] },
+      "coral-light": { "role": "primary-decorative-shade", "displayName": "Coral Light (Facet Panel highlight)", "canonical": "oklch(76% 0.142 21)", "tonalRamp": ["oklch(15% 0.072 21)", "oklch(25% 0.092 21)", "oklch(35% 0.112 21)", "oklch(45% 0.132 21)", "oklch(58% 0.127 21)", "oklch(70% 0.102 21)", "oklch(82% 0.078 21)", "oklch(93% 0.057 21)"] },
+      "paper": { "role": "surface", "displayName": "Paper", "canonical": "oklch(99% 0.000 90)", "tonalRamp": ["oklch(15% 0.010 90)", "oklch(25% 0.013 90)", "oklch(35% 0.016 90)", "oklch(45% 0.019 90)", "oklch(58% 0.018 90)", "oklch(70% 0.014 90)", "oklch(82% 0.011 90)", "oklch(93% 0.008 90)"] },
+      "ink": { "role": "on-surface", "displayName": "Ink", "canonical": "oklch(22% 0.000 90)", "tonalRamp": ["oklch(15% 0.003 90)", "oklch(25% 0.003 90)", "oklch(35% 0.004 90)", "oklch(45% 0.005 90)", "oklch(58% 0.004 90)", "oklch(70% 0.004 90)", "oklch(82% 0.003 90)", "oklch(93% 0.002 90)"] },
+      "steel": { "role": "on-surface-variant", "displayName": "Steel (light-mode text / dark-mode border)", "canonical": "oklch(41% 0.000 90)", "tonalRamp": ["oklch(15% 0.000 90)", "oklch(25% 0.000 90)", "oklch(35% 0.000 90)", "oklch(45% 0.000 90)", "oklch(58% 0.000 90)", "oklch(70% 0.000 90)", "oklch(82% 0.000 90)", "oklch(93% 0.000 90)"] },
+      "fold-shadow": { "role": "outline-variant", "displayName": "Fold Shadow (light-mode border / dark-mode text)", "canonical": "oklch(76% 0.000 90)", "tonalRamp": ["oklch(15% 0.000 90)", "oklch(25% 0.000 90)", "oklch(35% 0.000 90)", "oklch(45% 0.000 90)", "oklch(58% 0.000 90)", "oklch(70% 0.000 90)", "oklch(82% 0.000 90)", "oklch(93% 0.000 90)"] },
+      "sky": { "role": "decorative", "displayName": "Sky (crease-line only)", "canonical": "oklch(81% 0.082 226)", "tonalRamp": ["oklch(15% 0.042 226)", "oklch(25% 0.053 226)", "oklch(35% 0.065 226)", "oklch(45% 0.076 226)", "oklch(58% 0.073 226)", "oklch(70% 0.059 226)", "oklch(82% 0.045 226)", "oklch(93% 0.033 226)"] },
+      "sage": { "role": "decorative", "displayName": "Sage (crease-line only)", "canonical": "oklch(83% 0.060 158)", "tonalRamp": ["oklch(15% 0.031 158)", "oklch(25% 0.039 158)", "oklch(35% 0.047 158)", "oklch(45% 0.056 158)", "oklch(58% 0.053 158)", "oklch(70% 0.043 158)", "oklch(82% 0.033 158)", "oklch(93% 0.024 158)"] },
+      "crease": { "role": "decorative", "displayName": "Warm Crease (crease-line only)", "canonical": "oklch(85% 0.095 80)", "tonalRamp": ["oklch(15% 0.048 80)", "oklch(25% 0.062 80)", "oklch(35% 0.075 80)", "oklch(45% 0.088 80)", "oklch(58% 0.084 80)", "oklch(70% 0.068 80)", "oklch(82% 0.052 80)", "oklch(93% 0.038 80)"] }
+    },
+    "typographyMeta": {
+      "hero": { "displayName": "Hero", "purpose": "The home page's one hero headline." },
+      "h1": { "displayName": "H1", "purpose": "The page-level heading on every restrained-tier page (ask, conversations, files, workspaces, login, register, about, beta, new workspace)." },
+      "h2": { "displayName": "H2", "purpose": "Feature-row headings on the home page (What is RAG?, Workspaces)." },
+      "h2-operate": { "displayName": "H2 Operate", "purpose": "Sub-headings on restrained-tier pages (Past conversations, Files) — one step below H1 Operate." },
+      "body": { "displayName": "Body", "purpose": "Running prose sitewide." },
+      "body-lg": { "displayName": "Body Large", "purpose": "The hero's intro line only — one deliberate size step up." },
+      "label": { "displayName": "Label", "purpose": "Buttons, nav links, source-chip labels, the beta mark, form labels." },
+      "mono": { "displayName": "Mono", "purpose": "Code blocks only — never generic 'technical' decoration." }
+    },
+    "shadows": [
+      { "name": "light-directional", "value": "0 4px 16px rgba(26,26,26,0.08)", "usage": "Light mode depth on faceted surfaces (home page only)." },
+      { "name": "dark-crease-highlight", "value": "inset 0 0 0 1px rgba(176,176,176,0.15)", "usage": "Dark mode depth substitute — a highlight border, never a shadow." }
+    ],
+    "motion": [
+      { "name": "hero-entrance", "value": "fade + translateY(16px → 0), 420ms ease-out, 80ms stagger", "usage": "The one authored motion moment — home page hero only, on load." },
+      { "name": "hover-lift", "value": "transform/opacity/shadow, 200ms ease-out", "usage": "Buttons and source chips on hover/focus." }
+    ],
+    "breakpoints": [
+      { "name": "home-stack", "value": "768px" },
+      { "name": "restrained-reading-measure", "value": "46rem" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Button (Primary)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Coral fill, Ink text, fold-cut top-right corner. Used for the one primary action on a page — the home CTA and every form's submit button.",
+      "html": "<button type=\"submit\" class=\"origami-button-primary\">Log in</button>",
+      "css": ".origami-button-primary { display: inline-block; background: #FF6B6B; color: #1A1A1A; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); padding: 0.65rem 1.25rem; border: none; font-weight: 600; cursor: pointer; }"
+    },
+    {
+      "name": "Button (Secondary / Ghost)",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Transparent fill, fold-cut corner, for utility actions (Edit, Save, Delete, Refresh) that shouldn't compete with a page's one primary action.",
+      "html": "<button type=\"button\" class=\"origami-button-secondary\">Refresh</button>",
+      "css": ".origami-button-secondary { display: inline-block; background: transparent; color: #1A1A1A; border: 1px solid #B0B0B0; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); padding: 0.35rem 0.7rem; font-weight: 500; font-size: 0.875rem; } .origami-button-secondary:hover { border-color: #FF6B6B; color: #B34B4B; }"
+    },
+    {
+      "name": "Source Chip (ask page)",
+      "kind": "chip",
+      "refersTo": "source-chip",
+      "description": "A real anchor link to a cited source, fold-cut corner, the accent's one text use in light mode.",
+      "html": "<a class=\"ds-source-chip\" href=\"#\">resume.pdf</a>",
+      "css": ".ds-source-chip { display: inline-block; color: #B34B4B; border: 1px solid #B34B4B; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); padding: 0.15rem 0.5rem; text-decoration: none; font-size: 0.875rem; } .ds-source-chip:hover, .ds-source-chip:focus-visible { background: #B34B4B; color: #FAFAFA; }"
+    },
+    {
+      "name": "Beta Mark",
+      "kind": "chip",
+      "refersTo": "beta-mark",
+      "description": "The one status marker sitewide: a fold-cut rectangle reusing the one accent.",
+      "html": "<span class=\"beta-badge\">Beta</span>",
+      "css": ".beta-badge { display: inline-block; background: transparent; color: #FF6B6B; border: 2px solid #FF6B6B; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); padding: 0.1rem 0.5rem; font-weight: 500; font-size: 0.875rem; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "text-input",
+      "description": "Label above input, 1px border, 2px coral focus ring with offset, no floating labels — used on Log In, Register, New Workspace, and file rename/upload forms.",
+      "html": "<label>Email<input type=\"email\" required /></label>",
+      "css": "label { display: block; font-weight: 500; font-size: 0.875rem; margin-bottom: 0.35rem; } input[type=\"email\"] { display: block; width: 100%; max-width: 24rem; border: 1px solid #B0B0B0; padding: 0.5rem; background: #FAFAFA; color: #1A1A1A; } input:focus-visible { outline: 2px solid #FF6B6B; outline-offset: 2px; }"
+    },
+    {
+      "name": "Page Actions",
+      "kind": "layout",
+      "refersTo": "page-actions",
+      "description": "A row directly below a restrained page's .page-intro sentence, echoing the home hero's h1 → intro → CTA rhythm. Holds the page's primary next step as one or two existing Button components — one Primary if it's the sole action, or Primary + Secondary when a forward action (e.g. \"New question\") pairs with an alternate one (e.g. \"See past conversations\").",
+      "html": "<p class=\"page-intro\">Browse your workspaces, or create a new one.</p>\n<div class=\"page-actions\">\n  <a class=\"origami-button-primary\" href=\"/workspaces/new\">Create a new workspace</a>\n</div>",
+      "css": ".page-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 1.5rem; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Origami Geometric",
+    "overview": "Dir Query's visual identity is built from a single physical idea: a flat sheet becomes dimensional through precise, deliberate folds. Every accented shape carries one clipped corner (the fold cut), and it appears only where it means something: buttons, source citations, the beta mark. Passive containers stay plain rectangles.\n\nThis world now governs the entire site at two intensities: full expression on the home page (hero, crease-line tessellation, zig-zag layout, one authored entrance animation) and restrained expression everywhere else (ask page, workspaces, login/register, about/beta, conversations, files) — same tokens and fold-cut device, but no tessellation, no hero, no motion.\n\nThis replaces \"The Lab Notebook,\" which briefly governed the ask page alone, and also fully retires the prior bare/unstyled \"Legacy\" baseline that used to cover the rest of the site — there is no unmigrated page left, and no legacy-* token remains.",
+    "keyCharacteristics": [
+      "One functional accent (Coral / Coral Ink) reserved for interactive elements; Sky, Sage, and Warm Crease are decorative-only, confined to the hero's crease-line texture.",
+      "The fold-cut corner is the system's one recurring shape device, reserved for buttons, source chips, and the beta mark — never on passive containers.",
+      "Depth is directional light on paper: an offset+blur shadow in light mode, a crease-highlight border (not a shadow) in dark mode.",
+      "Poppins carries all text sitewide, loaded via Google Fonts CDN; the existing mono stack is unchanged and unextended.",
+      "One authored motion moment: the home hero's staggered fade-up entrance. Nothing else animates on load."
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Coral (or Coral Ink in light mode) is the only functional/interactive color sitewide. Sky, Sage, and Warm Crease are decorative-only.", "section": "colors" },
+      { "name": "The Neutral Swap Rule", "body": "Steel and Fold Shadow trade jobs between modes: Steel is text in light / border in dark, Fold Shadow is border in light / text in dark.", "section": "colors" },
+      { "name": "The Crease, Not Fill Rule", "body": "Sky, Sage, and Warm Crease render only as thin diagonal hairlines in the crease-grid texture, never as solid filled shapes.", "section": "colors" },
+      { "name": "The Crease Light Rule", "body": "Light mode expresses depth as an offset+blur shadow; dark mode as a highlight border — never both, and never a shadow substituting for the fold-cut shape.", "section": "elevation" },
+      { "name": "The Cut Corner Rule", "body": "The fold cut marks something actionable or referenced — a button, a link-chip, a citation. It never decorates a passive container.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do keep Coral (or Coral Ink in light mode) as the only functional accent sitewide.",
+      "Do reserve the fold-cut corner for actionable/referenced elements only.",
+      "Do keep the crease-grid tessellation and hero entrance motion exclusive to the home page.",
+      "Do verify any new text/background pairing against real contrast math — Coral fails as light-mode text (2.7:1); Coral Ink exists to fix that."
+    ],
+    "donts": [
+      "Don't add a second functional hue. Sky/Sage/Warm Crease are decorative-only.",
+      "Don't put a fold cut on a passive container.",
+      "Don't use a conventional box-shadow in dark mode.",
+      "Don't add a second webfont beyond Poppins without a deliberate follow-up decision.",
+      "Don't reintroduce a bare/unstyled baseline — every page now carries body.origami-world."
+    ]
+  }
+}

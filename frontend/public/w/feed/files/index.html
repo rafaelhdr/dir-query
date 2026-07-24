@@ -1,10 +1,17 @@
 <!doctype html>
+<!-- Origami Geometric — restrained tier (see DESIGN.md). -->
 <html lang="en">
   <head>
     <!--#set var="page_title" value="Content — Dir Query" -->
     <!--#include virtual="/partials/head.html" -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
-  <body>
+  <body class="origami-world origami-page">
     <!--#include virtual="/partials/nav.html" -->
 
     <div x-data="filesPage()">
@@ -14,6 +21,10 @@
         <a :href="'/w/' + slug + '/ask'">Ask</a>
         <a :href="'/w/' + slug + '/feed/files'" class="active" aria-current="page">Content</a>
       </nav>
+
+      <p class="page-intro">Upload and manage the documents this workspace can search.</p>
+
+      <!--#include virtual="/partials/ask-cta.html" -->
 
       <details id="add-content" x-show="canEdit">
         <summary>Add content</summary>
@@ -26,14 +37,14 @@
             @change="if ($event.target.files.length) nameInput = $event.target.files[0].name"
           />
           <input type="text" name="name" placeholder="Display name" required x-model="nameInput" />
-          <button type="submit">Upload</button>
+          <button type="submit" class="origami-button-primary">Upload</button>
         </form>
         <div id="upload-result" x-text="uploadError"></div>
       </details>
 
       <div class="file-list-header">
         <h2>Files</h2>
-        <button type="button" @click="loadFiles()">Refresh</button>
+        <button type="button" class="origami-button-secondary" @click="loadFiles()">Refresh</button>
       </div>
 
       <table id="file-list">
@@ -52,7 +63,7 @@
                 <button
                   x-show="!file.editing && canEdit"
                   type="button"
-                  class="edit-link"
+                  class="edit-link origami-button-secondary"
                   @click="file.editing = true; file.editValue = file.display_name; file.editError = ''"
                 >
                   Edit
@@ -66,18 +77,18 @@
                       @keydown.enter.prevent="saveRename(file)"
                       @keydown.escape.prevent="file.editing = false"
                     />
-                    <button type="button" @click="saveRename(file)">Save</button>
-                    <button type="button" @click="file.editing = false">Cancel</button>
+                    <button type="button" class="origami-button-secondary" @click="saveRename(file)">Save</button>
+                    <button type="button" class="origami-button-secondary" @click="file.editing = false">Cancel</button>
                     <div class="rename-error" x-text="file.editError"></div>
                   </span>
                 </template>
               </td>
               <td x-text="file.status"></td>
               <td>
-                <button type="button" @click="window.open(file.url, '_blank', 'noopener')">
+                <button type="button" class="origami-button-secondary" @click="window.open(file.url, '_blank', 'noopener')">
                   Open
                 </button>
-                <button x-show="canEdit" type="button" @click="deleteFile(file.id)">
+                <button x-show="canEdit" type="button" class="origami-button-secondary" @click="deleteFile(file.id)">
                   Delete
                 </button>
               </td>

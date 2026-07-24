@@ -1,199 +1,834 @@
-body {
-  font-family: system-ui, sans-serif;
-  max-width: 40rem;
-  margin: 2rem auto;
-  padding: 0 1rem;
-  line-height: 1.5;
+/* =====================================================================
+   Origami Geometric — the site's one visual identity, scoped under
+   body.origami-world. Every page on the site now carries this class;
+   there is no remaining unstyled/bare baseline. See DESIGN.md.
+
+   One shared page shell (max-width, margin, padding) on every page —
+   nav and footer always sit flush within it, exactly like the home page.
+   Two restrained-tier variants then cap their own inner content to a
+   comfortable reading measure (craft-floor's 65–75ch guidance), the same
+   way the home page caps its own hero/feature paragraph widths rather
+   than letting text stretch the full shell:
+   - .origami-world.origami-landing — full expression (home page, Persuade)
+   - .origami-world.ask-page         — restrained (the ask page, Operate)
+   - .origami-world.origami-page     — restrained (every other page)
+   Shared rules below (nav, footer, workspace-tabs, beta mark) apply
+   across all three; each variant section below adds what's specific.
+   ===================================================================== */
+
+.origami-world {
+  --og-bg: #FAFAFA;
+  --og-ink: #1A1A1A;
+  --og-secondary: #4A4A4A;
+  --og-border: #B0B0B0;
+  --og-accent: #B34B4B;
+  --og-accent-fill: #FF6B6B;
+  --og-accent-light: #ff8a8a;
+  --og-shadow: 0 4px 16px rgba(26, 26, 26, 0.08);
+  --og-cut-sm: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  --og-cut-lg: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+  --og-cut-lg-mirror: polygon(20px 0, 100% 0, 100% 100%, 0 100%, 0 20px);
+
+  color-scheme: light dark;
+  font-family: "Poppins", system-ui, sans-serif;
+  background-color: var(--og-bg);
+  color: var(--og-ink);
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
 }
 
-nav {
+@media (prefers-color-scheme: dark) {
+  .origami-world {
+    --og-bg: #1A1A1A;
+    --og-ink: #FAFAFA;
+    --og-secondary: #B0B0B0;
+    --og-border: #4A4A4A;
+    --og-accent: #FF6B6B;
+    --og-accent-fill: #FF6B6B;
+    --og-accent-light: #ff8a8a;
+    --og-shadow: none;
+  }
+}
+
+/* ---- Shared chrome: nav, footer, workspace tabs, beta mark ---- */
+
+.origami-world nav {
   display: flex;
   align-items: center;
 }
 
-nav a {
+/* Restrained pages otherwise ran content flush against the nav — the home
+   hero's own top padding gave it room the rest of the site never had.
+   Replicates that same breathing room (not the hero's font scale/motion)
+   before every restrained page's heading. */
+.origami-world.ask-page > nav,
+.origami-world.origami-page > nav {
+  margin-bottom: clamp(3rem, 6vw, 5rem);
+}
+
+.origami-world nav a {
   margin-right: 1rem;
+  color: var(--og-ink);
 }
 
-nav .beta-badge {
+.origami-world nav .beta-badge {
   margin-left: auto;
-}
-
-.beta-badge {
   display: inline-block;
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #f59e0b;
-  border-radius: 0.25rem;
-  padding: 0.15rem 0.5rem;
-  font-size: 0.85rem;
-  font-weight: bold;
+  background: transparent;
+  color: var(--og-accent-fill);
+  border: 2px solid var(--og-accent-fill);
+  clip-path: var(--og-cut-sm);
+  border-radius: 0;
+  padding: 0.1rem 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
 }
 
-.workspace-tabs {
+/* Double rule (not a plain 1px line, unlike inter-row dividers elsewhere)
+   marks this as the page's closing edge, not just another divider. */
+.origami-world footer {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 5px double var(--og-border);
   display: flex;
   gap: 1rem;
-  border-bottom: 1px solid #ddd;
+  font-size: 0.875rem;
+  color: var(--og-secondary);
+}
+
+.origami-world footer a {
+  color: inherit;
+}
+
+.origami-world .workspace-tabs {
+  display: flex;
+  gap: 1rem;
+  border-bottom: 1px solid var(--og-border);
   margin-bottom: 1rem;
 }
 
-.workspace-tabs a {
+.origami-world .workspace-tabs a {
   margin-right: 0;
   padding: 0.5rem 0.25rem;
-  color: #666;
+  color: var(--og-secondary);
   text-decoration: none;
   border-bottom: 2px solid transparent;
+  font-weight: 500;
+  font-size: 0.875rem;
 }
 
-.workspace-tabs a.active {
-  color: inherit;
-  font-weight: bold;
-  border-bottom-color: #333;
+.origami-world .workspace-tabs a.active {
+  color: var(--og-ink);
+  font-weight: 600;
+  border-bottom-color: var(--og-accent-fill);
 }
 
-.ask-form {
-  display: flex;
-  gap: 0.5rem;
-  padding: 1rem 0;
+/* Buttons: primary is the fold-cut coral fill (the one interactive
+   accent); secondary is the ghost variant for utility actions (Edit,
+   Save, Refresh, Delete...) that shouldn't compete with a page's one
+   primary action. Both reusable across every variant. */
+.origami-button-primary {
+  display: inline-block;
+  background: var(--og-accent-fill);
+  color: #1a1a1a;
+  clip-path: var(--og-cut-sm);
+  padding: 0.65rem 1.25rem;
+  border: none;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: var(--og-shadow);
+  transition: filter 200ms ease-out, transform 200ms ease-out;
 }
 
-.ask-form input[type="text"] {
-  flex: 1;
-  padding: 0.5rem;
+.origami-button-primary:hover,
+.origami-button-primary:focus-visible {
+  filter: brightness(0.94);
+  transform: translateY(-1px);
 }
 
-.exchange {
-  margin-bottom: 1.5rem;
+.origami-button-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
-.exchange-question {
-  font-weight: bold;
-  margin-bottom: 0.25rem;
+.origami-world .origami-button-secondary {
+  display: inline-block;
+  background: transparent;
+  color: var(--og-ink);
+  border: 1px solid var(--og-border);
+  clip-path: var(--og-cut-sm);
+  padding: 0.35rem 0.7rem;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  text-decoration: none;
 }
 
-.exchange-loading {
-  color: #666;
-  font-style: italic;
+.origami-world .origami-button-secondary:hover,
+.origami-world .origami-button-secondary:focus-visible {
+  border-color: var(--og-accent-fill);
+  color: var(--og-accent);
 }
 
-.exchange-answer p,
-.exchange-answer ul,
-.exchange-answer ol,
-.exchange-answer pre,
-.exchange-answer blockquote {
+/* ---- Ask page: restrained tier (Operate mode) ---- */
+/* The page shell (nav/footer width) now matches every other page — see
+   the base .origami-world rule. Content below stays capped to a
+   comfortable reading measure instead of stretching the full shell. */
+
+.origami-world.ask-page .page-cover,
+.origami-world.ask-page .page-intro,
+.origami-world.ask-page .workspace-tabs,
+.origami-world.ask-page .page-actions,
+.origami-world.ask-page #exchanges,
+.origami-world.ask-page .ask-form {
+  max-width: 46rem;
+}
+
+/* Shared with .origami-page below — same h1 token (see DESIGN.md), each
+   variant only differs in the margin beneath it. */
+.origami-world.ask-page h1,
+.origami-world.origami-page h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.origami-world.ask-page h1 {
   margin: 0 0 0.5rem;
 }
 
-.exchange-answer ul,
-.exchange-answer ol {
+.origami-world .page-intro {
+  color: var(--og-secondary);
+  margin: 0.5rem 0 1.5rem;
+}
+
+/* Every restrained page's hero echo of the home page's h1 → intro →
+   CTA pattern: one or two buttons, never competing with the fold-cut
+   primary/secondary button styles used elsewhere. */
+.origami-world .page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0 0 1.5rem;
+}
+
+/* Entries: plain rectangles, no fold cut (a passive container) */
+.origami-world .exchange {
+  padding: 1.25rem 1rem;
+  margin: 0 -1rem 0.5rem;
+}
+
+.origami-world .entry-stamp {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--og-secondary);
+  margin: 0 0 0.25rem;
+}
+
+.origami-world .exchange-question {
+  font-weight: 600;
+  color: var(--og-ink);
+  margin: 0 0 0.5rem;
+}
+
+.origami-world .exchange-loading {
+  color: var(--og-secondary);
+  font-style: italic;
+}
+
+.origami-world .exchange-content {
+  display: grid;
+  grid-template-columns: 1fr 8rem;
+  column-gap: 1.5rem;
+  align-items: start;
+}
+
+.origami-world .exchange-answer {
+  color: var(--og-ink);
+}
+
+.origami-world .exchange-answer p,
+.origami-world .exchange-answer ul,
+.origami-world .exchange-answer ol,
+.origami-world .exchange-answer pre,
+.origami-world .exchange-answer blockquote {
+  margin: 0 0 0.5rem;
+}
+
+.origami-world .exchange-answer ul,
+.origami-world .exchange-answer ol {
   padding-left: 1.25rem;
 }
 
-.exchange-answer p:last-child,
-.exchange-answer ul:last-child,
-.exchange-answer ol:last-child,
-.exchange-answer pre:last-child,
-.exchange-answer blockquote:last-child {
+.origami-world .exchange-answer p:last-child,
+.origami-world .exchange-answer ul:last-child,
+.origami-world .exchange-answer ol:last-child,
+.origami-world .exchange-answer pre:last-child,
+.origami-world .exchange-answer blockquote:last-child {
   margin-bottom: 0;
 }
 
-.exchange-answer code {
-  font-family: ui-monospace, monospace;
-  background: #f3f4f6;
-  padding: 0.1rem 0.3rem;
-  border-radius: 0.2rem;
-  font-size: 0.9em;
+/* Shared inline-code look with .origami-page code below; this scope only
+   adds the explicit ink color since exchange-answer content sits inside
+   a grid where color wouldn't otherwise inherit as expected. */
+.origami-world .exchange-answer code {
+  color: var(--og-ink);
 }
 
-.exchange-answer pre {
-  background: #f3f4f6;
+.origami-world .exchange-answer pre {
+  background: color-mix(in srgb, var(--og-ink) 6%, transparent);
   padding: 0.5rem;
-  border-radius: 0.3rem;
   overflow-x: auto;
+  color: var(--og-ink);
 }
 
-.exchange-answer pre code {
+.origami-world .exchange-answer pre code {
   background: none;
   padding: 0;
 }
 
-.exchange-answer blockquote {
-  border-left: 3px solid #ddd;
+.origami-world .exchange-answer blockquote {
+  border-left: 3px solid var(--og-border);
   padding-left: 0.75rem;
-  color: #555;
+  color: var(--og-secondary);
 }
 
-.exchange-sources {
-  color: #666;
-  font-size: 0.9rem;
+.origami-world .exchange-sources {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.origami-world .citation-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--og-secondary);
+}
+
+/* Source chip: the fold-cut device — reserved for this, buttons, and the
+   beta mark. Never applied to the exchange container above. */
+.origami-world .citation-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--og-accent);
+  text-decoration: none;
+  font-size: 0.875rem;
+  border: 1px solid var(--og-accent);
+  clip-path: var(--og-cut-sm);
+  padding: 0.15rem 0.5rem;
+  background: var(--og-bg);
+  max-width: 100%;
+}
+
+.origami-world .citation-tab span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.origami-world .citation-tab-num {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.origami-world .citation-tab:hover,
+.origami-world .citation-tab:focus-visible {
+  background: var(--og-accent);
+  color: var(--og-bg);
+}
+
+.origami-world .exchange-error {
+  color: var(--og-accent);
+}
+
+@media (max-width: 40rem) {
+  .origami-world .exchange-content {
+    grid-template-columns: 1fr;
+    row-gap: 0.75rem;
+  }
+
+  .origami-world .exchange-sources {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .origami-world .citation-tab span:last-child {
+    max-width: 10rem;
+  }
+}
+
+.origami-world .ask-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--og-border);
+  padding: 1rem 0;
+}
+
+.origami-world .ask-form input[type="text"] {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--og-border);
+  border-radius: 0;
+  color: var(--og-ink);
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.4rem 0.1rem;
+}
+
+.origami-world .ask-form input[type="text"]:focus-visible {
+  outline: none;
+  border-bottom-color: var(--og-accent-fill);
+}
+
+.origami-world .ask-form input[type="text"]::placeholder {
+  color: var(--og-secondary);
+}
+
+/* Submit button: an actionable element, so it earns the fold cut. */
+.origami-world .ask-form button[type="submit"] {
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1rem;
+  background: var(--og-accent-fill);
+  color: var(--og-ink);
+  border: none;
+  clip-path: var(--og-cut-sm);
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+  transition: filter 200ms ease-out;
+}
+
+.origami-world .ask-form button[type="submit"]:hover,
+.origami-world .ask-form button[type="submit"]:focus-visible {
+  filter: brightness(0.92);
+}
+
+.origami-world .ask-form input:disabled,
+.origami-world .ask-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Every other page: restrained tier (Operate/Read mode) ---- */
+/* Workspaces, login/register, about/beta, conversations, files — all
+   migrated to the same restrained intensity as the ask page: tokens and
+   the fold-cut device, no tessellation, no hero, no motion. */
+
+/* The page shell (nav/footer width) now matches every other page — see
+   the base .origami-world rule. Content below stays capped to a
+   comfortable reading measure instead of stretching the full shell. */
+.origami-world.origami-page h1,
+.origami-world.origami-page h2,
+.origami-world.origami-page p,
+.origami-world.origami-page .workspace-tabs,
+.origami-world.origami-page .page-actions,
+.origami-world.origami-page form,
+.origami-world.origami-page details {
+  max-width: 46rem;
+}
+
+/* Lists and the file table are structural, row-divided content — they
+   read better filling the full shell width than sharing the prose cap
+   above, so their dividers line up edge-to-edge with the footer's rule. */
+.origami-world.origami-page #workspace-list,
+.origami-world.origami-page #conversation-list,
+.origami-world.origami-page .file-list-header,
+.origami-world.origami-page #file-list {
+  max-width: 100%;
+}
+
+.origami-world.origami-page h1 {
+  margin: 0 0 1rem;
+}
+
+.origami-world.origami-page h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 1.75rem 0 0.5rem;
+}
+
+.origami-world.origami-page p {
+  margin: 0 0 1rem;
+}
+
+.origami-world.origami-page p a {
+  color: var(--og-accent);
+}
+
+.origami-world.origami-page p a:hover,
+.origami-world.origami-page p a:focus-visible {
+  color: var(--og-accent-fill);
+}
+
+.origami-world .exchange-answer code,
+.origami-world.origami-page code {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
+  background: color-mix(in srgb, var(--og-ink) 6%, transparent);
+  padding: 0.1rem 0.3rem;
+  font-size: 0.9em;
+}
+
+.origami-world.origami-page details summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--og-accent);
+}
+
+.origami-world.origami-page fieldset {
+  border: 1px solid var(--og-border);
+  padding: 1rem;
+  margin-top: 0.75rem;
+}
+
+.origami-world.origami-page legend {
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0 0.4rem;
+}
+
+/* Forms: label above input, per DESIGN.md's Input component. */
+.origami-world.origami-page form p {
+  margin: 0 0 1rem;
+}
+
+.origami-world.origami-page form label {
+  display: block;
+  font-weight: 500;
+  font-size: 0.875rem;
+  margin-bottom: 0.35rem;
+}
+
+.origami-world.origami-page form input[type="text"],
+.origami-world.origami-page form input[type="email"],
+.origami-world.origami-page form input[type="password"],
+.origami-world.origami-page form textarea {
+  display: block;
+  width: 100%;
+  max-width: 24rem;
+  border: 1px solid var(--og-border);
+  border-radius: 0;
+  padding: 0.5rem;
+  font-family: inherit;
+  font-size: 1rem;
+  background: var(--og-bg);
+  color: var(--og-ink);
+}
+
+.origami-world.origami-page form input:focus-visible,
+.origami-world.origami-page form textarea:focus-visible {
+  outline: 2px solid var(--og-accent-fill);
+  outline-offset: 2px;
+}
+
+.origami-world.origami-page form small {
+  display: block;
+  color: var(--og-secondary);
+  font-size: 0.875rem;
   margin-top: 0.25rem;
 }
 
-.exchange-error {
-  color: #b91c1c;
-}
-
-.ask-page-nav {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.origami-world.origami-page #form-error {
+  color: var(--og-accent);
+  font-weight: 500;
   margin-bottom: 1rem;
 }
 
-#upload-result {
-  margin-top: 1rem;
+/* Workspaces list */
+.origami-world.origami-page #workspace-list {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
 }
 
-#add-content form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-  max-width: 24rem;
+.origami-world.origami-page #workspace-list li {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--og-border);
 }
 
-.file-list-header {
+.origami-world.origami-page #workspace-list li a {
+  color: var(--og-ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.origami-world.origami-page #workspace-list li a:hover,
+.origami-world.origami-page #workspace-list li a:focus-visible {
+  color: var(--og-accent);
+}
+
+.origami-world.origami-page .workspace-description {
+  color: var(--og-secondary);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.origami-world.origami-page #empty-message {
+  color: var(--og-secondary);
+}
+
+/* Conversations list */
+.origami-world.origami-page #conversation-list ul {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.origami-world.origami-page #conversation-list li {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--og-border);
+}
+
+.origami-world.origami-page #conversation-list li a {
+  color: var(--og-ink);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.origami-world.origami-page #conversation-list li a:hover,
+.origami-world.origami-page #conversation-list li a:focus-visible {
+  color: var(--og-accent);
+}
+
+.origami-world.origami-page .conversation-meta {
+  color: var(--og-secondary);
+  font-size: 0.875rem;
+}
+
+/* Files table */
+.origami-world.origami-page .file-list-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-top: 1.5rem;
 }
 
-#file-list {
+.origami-world.origami-page #file-list {
   width: 100%;
   border-collapse: collapse;
   margin-top: 0.5rem;
 }
 
-#file-list th,
-#file-list td {
+.origami-world.origami-page #file-list th,
+.origami-world.origami-page #file-list td {
   text-align: left;
-  padding: 0.5rem 0.25rem;
-  border-bottom: 1px solid #eee;
+  padding: 0.6rem 0.4rem;
+  border-bottom: 1px solid var(--og-border);
 }
 
-.edit-link {
-  margin-left: 0.5rem;
-  font-size: 0.85em;
-  color: #666;
-}
-
-.rename-error {
-  margin-top: 0.25rem;
-  color: #b00020;
-  font-size: 0.85em;
-}
-
-footer {
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid #eee;
+.origami-world.origami-page #add-content form {
   display: flex;
-  gap: 1rem;
-  font-size: 0.9rem;
-  color: #666;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  max-width: 24rem;
 }
 
-footer a {
-  color: inherit;
+.origami-world.origami-page #upload-result {
+  color: var(--og-accent);
+  margin-top: 0.75rem;
+}
+
+.origami-world.origami-page .edit-link {
+  margin-left: 0.5rem;
+}
+
+.origami-world.origami-page .rename-error {
+  color: var(--og-accent);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+/* ---- Home page: full expression (Persuade mode) ---- */
+/* Shell width/padding now comes from the shared base .origami-world rule. */
+
+.origami-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: center;
+  padding: clamp(3rem, 6vw, 5rem) 0;
+  overflow: hidden;
+}
+
+/* The crease grid: thin diagonal hairlines in the decorative trio,
+   evoking fold lines rather than filled tessellated shapes. Hero only —
+   never on any restrained-tier page. */
+.origami-hero::before {
+  content: "";
+  position: absolute;
+  inset: -10% -5%;
+  z-index: -1;
+  background-image: repeating-linear-gradient(
+      60deg,
+      rgba(135, 206, 235, 0.08) 0,
+      rgba(135, 206, 235, 0.08) 1px,
+      transparent 1px,
+      transparent 40px
+    ),
+    repeating-linear-gradient(
+      -60deg,
+      rgba(168, 213, 186, 0.08) 0,
+      rgba(168, 213, 186, 0.08) 1px,
+      transparent 1px,
+      transparent 40px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(240, 201, 135, 0.06) 0,
+      rgba(240, 201, 135, 0.06) 1px,
+      transparent 1px,
+      transparent 56px
+    );
+}
+
+.origami-hero-text h1 {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0 0 1rem;
+  animation: origami-fade-up 420ms ease-out both;
+}
+
+.origami-hero-text p {
+  color: var(--og-secondary);
+  font-size: 1.125rem;
+  max-width: 42ch;
+  margin: 0 0 1.5rem;
+  animation: origami-fade-up 420ms ease-out 80ms both;
+}
+
+.origami-hero-visual {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 22rem;
+  margin: 0 auto;
+  animation: origami-fade-up 420ms ease-out 160ms both;
+}
+
+/* Facet panels: 3 overlapping folded planes, each a distinct tonal step so
+   they read as separate surfaces catching light differently, not one flat
+   tinted rectangle. Facet A is the back plane (neutral), B the mid plane
+   (muted accent, mirrored cut for compositional variety), C the front
+   plane (bold accent, smallest, boldest cut) — see DESIGN.md Components. */
+.origami-facet {
+  position: absolute;
+}
+
+.origami-facet-a {
+  inset: 6% 22% 24% 4%;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--og-ink) 16%, var(--og-bg)),
+    color-mix(in srgb, var(--og-ink) 26%, var(--og-bg))
+  );
+  border: 1px solid var(--og-border);
+  clip-path: var(--og-cut-lg);
+}
+
+.origami-facet-b {
+  inset: 26% 4% 4% 24%;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--og-accent-fill) 55%, var(--og-bg)),
+    color-mix(in srgb, var(--og-accent-fill) 30%, var(--og-bg))
+  );
+  clip-path: var(--og-cut-lg-mirror);
+}
+
+.origami-facet-c {
+  inset: 42% 30% 16% 14%;
+  background: linear-gradient(135deg, var(--og-accent-light), var(--og-accent-fill));
+  clip-path: var(--og-cut-sm);
+}
+
+.origami-feature-panel .origami-facet-a {
+  inset: 8% 24% 18% 4%;
+}
+
+.origami-feature-panel .origami-facet-c {
+  inset: 34% 6% 6% 32%;
+}
+
+@keyframes origami-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .origami-hero-text h1,
+  .origami-hero-text p,
+  .origami-hero-visual {
+    animation: none;
+  }
+}
+
+.origami-feature-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: center;
+  padding: clamp(2.5rem, 5vw, 4rem) 0;
+  border-top: 1px solid var(--og-border);
+}
+
+.origami-feature-row.origami-reverse .origami-feature-text {
+  order: 2;
+}
+
+.origami-feature-text h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.origami-feature-text p {
+  color: var(--og-secondary);
+  max-width: 70ch;
+  margin: 0 0 0.75rem;
+}
+
+.origami-feature-text p:last-child {
+  margin-bottom: 0;
+}
+
+.origami-feature-panel {
+  position: relative;
+  aspect-ratio: 4 / 3;
+}
+
+@media (max-width: 768px) {
+  .origami-hero,
+  .origami-feature-row {
+    grid-template-columns: 1fr;
+  }
+
+  .origami-feature-row.origami-reverse .origami-feature-text {
+    order: 0;
+  }
+
+  .origami-hero-visual,
+  .origami-feature-panel {
+    max-width: 18rem;
+    margin: 0 auto;
+  }
 }

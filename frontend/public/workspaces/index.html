@@ -1,18 +1,29 @@
 <!doctype html>
+<!-- Origami Geometric — restrained tier (see DESIGN.md). -->
 <html lang="en">
   <head>
     <!--#set var="page_title" value="Workspaces — Dir Query" -->
     <!--#include virtual="/partials/head.html" -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <script src="/marked.min.js"></script>
     <script src="/purify.min.js"></script>
   </head>
-  <body>
+  <body class="origami-world origami-page">
     <!--#include virtual="/partials/nav.html" -->
 
     <!--#set var="page_heading" value="Workspaces" -->
     <!--#include virtual="/partials/heading.html" -->
 
-    <p><a href="/workspaces/new">Create a new workspace</a></p>
+    <p class="page-intro">Browse your workspaces, or create a new one to start asking questions about your documents.</p>
+
+    <div class="page-actions">
+      <a class="origami-button-primary" href="/workspaces/new">Create a new workspace</a>
+    </div>
 
     <div x-data="workspacesPage()" x-init="load()">
       <ul id="workspace-list">

@@ -1,10 +1,17 @@
 <!doctype html>
+<!-- Origami Geometric — restrained tier (see DESIGN.md). -->
 <html lang="en">
   <head>
     <!--#set var="page_title" value="Past conversations — Dir Query" -->
     <!--#include virtual="/partials/head.html" -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
-  <body>
+  <body class="origami-world origami-page">
     <!--#include virtual="/partials/nav.html" -->
 
     <div x-data="conversationsPage()">
@@ -14,6 +21,10 @@
         <a :href="'/w/' + slug + '/ask'" class="active" aria-current="page">Ask</a>
         <a :href="'/w/' + slug + '/feed/files'">Content</a>
       </nav>
+
+      <p class="page-intro">Browse previous questions asked in this workspace, or start a new one.</p>
+
+      <!--#include virtual="/partials/ask-cta.html" -->
 
       <h2>Past conversations</h2>
 
@@ -26,7 +37,7 @@
             <li>
               <a :href="'/w/' + slug + '/ask/' + conversation.id" x-text="conversation.title"></a>
               <span
-                class="exchange-sources"
+                class="conversation-meta"
                 x-text="' — ' + new Date(conversation.created_at).toLocaleString()"
               ></span>
             </li>

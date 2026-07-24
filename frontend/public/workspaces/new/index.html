@@ -1,10 +1,17 @@
 <!doctype html>
+<!-- Origami Geometric — restrained tier (see DESIGN.md). -->
 <html lang="en">
   <head>
     <!--#set var="page_title" value="New Workspace — Dir Query" -->
     <!--#include virtual="/partials/head.html" -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
-  <body>
+  <body class="origami-world origami-page">
     <!--#include virtual="/partials/nav.html" -->
 
     <!--#set var="page_heading" value="New Workspace" -->
@@ -85,7 +92,7 @@
           </fieldset>
         </details>
 
-        <button type="submit" :disabled="submitting">Create workspace</button>
+        <button type="submit" class="origami-button-primary" :disabled="submitting">Create workspace</button>
       </form>
     </div>
 

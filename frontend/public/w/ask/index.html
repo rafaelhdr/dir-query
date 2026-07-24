@@ -1,54 +1,87 @@
 <!doctype html>
+<!--
+  DIRECTION CONTRACT — Origami Geometric (ask page, restrained tier)
+  THESIS: a flat sheet becomes dimensional through precise folds — the one
+  fold-cut corner marks actionable/referenced elements only (buttons,
+  source chips, the beta mark), never passive containers like entries.
+  OWN-WORLD: paper (#FAFAFA) + ink (#1A1A1A) neutrals, one coral accent
+  (#FF6B6B fill / #B34B4B text-on-light) for anything interactive. No
+  tessellation, no hero, no motion here — Operate mode earns scanability
+  over expression. Poppins carries all text. See DESIGN.md.
+  STORY: a visitor's question becomes a new numbered entry in an ongoing
+  record of rafaelhdr's documented experience — meticulous, checkable.
+  FIRST VIEWPORT: workspace name as a plain heading; the entry log below,
+  each numbered; the question input as the next line, with an accented
+  submit button.
+  FORM: replaces the retired "Lab Notebook" direction (dated-entry/desk-
+  lamp conceit), which briefly governed this page alone. Origami Geometric
+  is now the site's shared identity, expressed at full intensity on the
+  home page and restrained here.
+-->
 <html lang="en">
   <head>
     <!--#set var="page_title" value="Ask — Dir Query" -->
     <!--#include virtual="/partials/head.html" -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <script src="/marked.min.js"></script>
     <script src="/purify.min.js"></script>
   </head>
-  <body>
+  <body class="origami-world ask-page">
     <!--#include virtual="/partials/nav.html" -->
 
     <div x-data="askPage()">
-      <h1><span x-text="workspaceName"></span></h1>
+      <header class="page-cover">
+        <h1><span x-text="workspaceName"></span></h1>
+      </header>
 
       <nav class="workspace-tabs">
         <a :href="'/w/' + slug + '/ask'" class="active" aria-current="page">Ask</a>
         <a :href="'/w/' + slug + '/feed/files'">Content</a>
       </nav>
 
-      <div class="ask-page-nav">
-        <a :href="'/w/' + slug + '/ask/conversations'">Past conversations</a>
-        <button type="button" x-show="exchanges.length > 0" @click="resetConversation()">
-          New conversation
+      <p class="page-intro">Ask a question about this workspace's uploaded documents.</p>
+
+      <div class="page-actions">
+        <button
+          type="button"
+          class="origami-button-primary"
+          x-show="exchanges.length > 0"
+          @click="resetConversation()"
+        >
+          New question
         </button>
+        <a
+          :href="'/w/' + slug + '/ask/conversations'"
+          :class="exchanges.length > 0 ? 'origami-button-secondary' : 'origami-button-primary'"
+        >
+          See past conversations
+        </a>
       </div>
 
-      <p>Ask a question about this workspace's uploaded documents.</p>
-
       <div id="exchanges">
-        <template x-for="exchange in exchanges" :key="exchange.id">
+        <template x-for="(exchange, index) in exchanges" :key="exchange.id">
           <div class="exchange">
+            <p class="entry-stamp" x-text="'No. ' + String(index + 1).padStart(3, '0')"></p>
             <p class="exchange-question" x-text="exchange.question"></p>
             <div class="exchange-body">
               <p class="exchange-loading" x-show="exchange.status === 'loading'">Thinking…</p>
-              <div x-show="exchange.status === 'streaming' || exchange.status === 'answered'">
+              <div class="exchange-content" x-show="exchange.status === 'streaming' || exchange.status === 'answered'">
                 <div class="exchange-answer" x-html="exchange.answerHtml"></div>
                 <p
                   class="exchange-sources"
                   x-show="exchange.status === 'answered' && exchange.sources.length"
                 >
-                  Sources:
+                  <span class="citation-label">Sources</span>
                   <template x-for="(source, index) in exchange.sources" :key="source.url">
-                    <span
-                      ><span x-show="index > 0">, </span
-                      ><a
-                        :href="source.url"
-                        target="_blank"
-                        rel="noopener"
-                        x-text="source.name"
-                      ></a
-                    ></span>
+                    <a class="citation-tab" :href="source.url" target="_blank" rel="noopener">
+                      <span class="citation-tab-num" x-text="index + 1"></span>
+                      <span x-text="source.name"></span>
+                    </a>
                   </template>
                 </p>
               </div>
@@ -67,7 +100,7 @@
           :disabled="submitting"
           x-ref="questionInput"
         />
-        <button type="submit" :disabled="submitting">Ask</button>
+        <button type="submit" :disabled="submitting"><span aria-hidden="true">→</span> Ask</button>
       </form>
     </div>
 
