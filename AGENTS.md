@@ -163,6 +163,102 @@ re-indexes them automatically under the new provider. **This is
 destructive** (all existing chunks are cleared) and has no confirmation
 prompt — only run it deliberately, after changing `EMBED_PROVIDER`.
 
+## Production deployment
+
+`docker-compose.prod.yml` is an overlay on top of `docker-compose.yml`, not
+a standalone file — always run both together:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+Compared to local development, the overlay:
+
+- Removes the `postgres`/`backend`/`frontend` host port mappings. Only
+  Caddy is published; it reverse-proxies to `frontend`, and the frontend's
+  own Nginx already proxies `/api/` to `backend` (see
+  `frontend/nginx.conf`), so the backend is never reachable directly and
+  Postgres is never reachable from outside the machine at all.
+- Drops the backend's source-code bind mounts and `--reload` flag (those
+  are dev-only hot reload) so the container runs the code baked into the
+  image at build time, and drops the frontend's `develop.watch` block
+  (dev-only Compose Watch) for the same reason.
+- Adds a `caddy` service (built from `caddy/`, config in
+  `caddy/Caddyfile`) that gets a TLS certificate from Let's Encrypt for
+  `DOMAIN` and terminates HTTPS.
+
+`DOMAIN` (e.g. `DOMAIN=example.com` in `.env`) is a **production-only**
+environment variable — it has no effect and isn't needed for local
+development (`docker-compose.yml` alone never reads it), and Caddy refuses
+to start without it.
+
+#### Cloudflare and the DNS-01 challenge
+
+This deployment assumes the domain sits behind Cloudflare's proxy (the
+orange-cloud DNS record). Caddy normally proves domain ownership to Let's
+Encrypt with an HTTP-01 challenge — a plain-HTTP request to port 80 — but
+that doesn't work reliably through a proxied Cloudflare record: Cloudflare
+edge features like "Always Use HTTPS" redirect the plain-HTTP validation
+request before it ever reaches the origin, so Caddy never obtains a
+certificate. Symptom: Cloudflare shows **Error 525 (SSL handshake
+failed)** because it's trying to speak TLS to an origin that has no valid
+certificate to present.
+
+The fix is a **DNS-01 challenge** instead: Caddy proves ownership by
+creating a TXT record via the Cloudflare API rather than answering an HTTP
+request, so it works regardless of the proxy or any edge redirect rules,
+and never needs port 80 reachable at all. This requires:
+
+- `caddy/Dockerfile` builds a custom Caddy image with the
+  [`caddy-dns/cloudflare`](https://github.com/caddy-dns/cloudflare) plugin
+  (the stock `caddy:2-alpine` image doesn't include DNS provider plugins) —
+  `docker-compose.prod.yml`'s `caddy` service builds from `./caddy` rather
+  than pulling a pre-built image.
+- `caddy/Caddyfile` passes the token to the plugin via `dns cloudflare
+  {env.CLOUDFLARE_API_TOKEN}`.
+- `CLOUDFLARE_API_TOKEN` (set in `.env`, production-only, same as `DOMAIN`)
+  — an API token from
+  https://dash.cloudflare.com/profile/api-tokens, created with the "Edit
+  zone DNS" template and scoped to only the specific zone being deployed
+  to. Do **not** use the account's Global API Key — the scoped token can
+  only edit DNS for that one zone.
+
+In Cloudflare's dashboard, also set **SSL/TLS encryption mode** to **Full
+(strict)** for the zone (SSL/TLS > Overview) — this makes Cloudflare
+validate the origin's certificate rather than accepting anything, which
+Caddy's Let's Encrypt cert satisfies once issued.
+
+### Deploying to a server over SSH
+
+There's no deploy script yet — these are the manual steps:
+
+1. SSH into the server, then install Docker if it isn't already there
+   (e.g. on Debian/Ubuntu, [Docker's official install
+   script](https://get.docker.com): `curl -fsSL https://get.docker.com |
+   sh`). Confirm with `docker compose version`.
+2. Copy the repository onto the server (`git clone`, or `rsync`/`scp` a
+   working copy) — anywhere with the same layout as this repo.
+3. On the server, create `.env` from `.env.example` and `secrets/*.txt`
+   from the matching `secrets/*.txt.example` files, filling in real
+   values: at minimum `POSTGRES_PASSWORD`, `JWT_SECRET_KEY`,
+   `WORKSPACE_KEY_ENCRYPTION_SECRET`, an LLM provider credential, `DOMAIN`,
+   and `CLOUDFLARE_API_TOKEN` (see above). None of these should be the
+   same values used in local development.
+4. In Cloudflare, point the domain's DNS record at the server (proxied,
+   orange cloud, is fine — DNS-01 doesn't need it unproxied) and set
+   SSL/TLS mode to Full (strict).
+5. From the repo root on the server, run:
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+   ```
+6. Check `docker compose -f docker-compose.yml -f docker-compose.prod.yml
+   logs -f caddy` the first time to confirm the certificate issued
+   successfully, then visit `https://<DOMAIN>`.
+
+To deploy a new version later, pull/copy the updated code and re-run the
+same `up -d --build` command — Compose recreates only the services whose
+image or config changed.
+
 ## Backend development
 
 ```bash

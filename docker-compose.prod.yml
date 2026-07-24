@@ -1,0 +1,58 @@
+# Production overlay for docker-compose.yml. Use together with the base
+# file, never alone:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# What this changes vs. local development:
+# - Removes the postgres/backend/frontend host port mappings. Nothing but
+#   Caddy is reachable from outside the machine; Caddy reverse-proxies to
+#   the frontend over the internal compose network, and the frontend's own
+#   Nginx already proxies /api/ to the backend (see frontend/nginx.conf) —
+#   so the backend never needs to be published either.
+# - Drops the backend's source-code bind mounts and --reload flag (dev-only
+#   hot reload) so the container runs the code baked into the image.
+# - Drops the frontend's `develop.watch` block (dev-only Compose Watch).
+# - Adds Caddy, which terminates HTTPS for DOMAIN and gets its certificate
+#   automatically from Let's Encrypt via a DNS-01 challenge against
+#   Cloudflare (needed because this domain is proxied through Cloudflare —
+#   see caddy/Caddyfile and AGENTS.md's "Production deployment" section for
+#   why the usual HTTP-01 challenge doesn't work through Cloudflare's proxy).
+#
+# DOMAIN and CLOUDFLARE_API_TOKEN are production-only environment variables
+# — do not set them in your local .env. See AGENTS.md's "Production
+# deployment" section.
+
+services:
+  postgres:
+    ports: !reset []
+
+  backend:
+    ports: !reset []
+    volumes: !override
+      - ./backend/data/uploads:/data/uploads
+      - ./backend/data/hf-cache:/data/hf-cache
+      - ./secrets:/run/secrets:ro
+    command: ["./docker-entrypoint.sh"]
+
+  frontend:
+    ports: !reset []
+    develop: !reset null
+
+  caddy:
+    build: ./caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN must be set to your production domain (e.g. example.com) when using docker-compose.prod.yml — production only, do not set this for local development}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN must be set to a Cloudflare API token scoped to Zone:DNS:Edit for your domain's zone — production only, do not set this for local development}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  caddy_data:
+  caddy_config:
