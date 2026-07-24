@@ -51,11 +51,49 @@
   }
 }
 
+/* Explicit theme override (site theme-toggle button) — takes precedence
+   over the media query above via higher selector specificity, regardless
+   of source order. Absent data-theme attribute = OS preference governs,
+   as above. */
+html[data-theme="dark"] .origami-world {
+  --og-bg: #1A1A1A;
+  --og-ink: #FAFAFA;
+  --og-secondary: #B0B0B0;
+  --og-border: #4A4A4A;
+  --og-accent: #FF6B6B;
+  --og-accent-fill: #FF6B6B;
+  --og-accent-light: #ff8a8a;
+  --og-shadow: none;
+}
+
+html[data-theme="light"] .origami-world {
+  --og-bg: #FAFAFA;
+  --og-ink: #1A1A1A;
+  --og-secondary: #4A4A4A;
+  --og-border: #B0B0B0;
+  --og-accent: #B34B4B;
+  --og-accent-fill: #FF6B6B;
+  --og-accent-light: #ff8a8a;
+  --og-shadow: 0 4px 16px rgba(26, 26, 26, 0.08);
+}
+
 /* ---- Shared chrome: nav, footer, workspace tabs, beta mark ---- */
 
 .origami-world nav {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+}
+
+.origami-world nav .nav-left,
+.origami-world nav .nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.origami-world nav .nav-right {
+  margin-left: auto;
 }
 
 /* Restrained pages otherwise ran content flush against the nav — the home
@@ -68,12 +106,10 @@
 }
 
 .origami-world nav a {
-  margin-right: 1rem;
   color: var(--og-ink);
 }
 
 .origami-world nav .beta-badge {
-  margin-left: auto;
   display: inline-block;
   background: transparent;
   color: var(--og-accent-fill);
@@ -83,6 +119,25 @@
   padding: 0.1rem 0.5rem;
   font-weight: 500;
   font-size: 0.875rem;
+  text-decoration: none;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+.origami-world nav .beta-badge:hover,
+.origami-world nav .beta-badge:focus-visible {
+  background: var(--og-accent-fill);
+  color: #1a1a1a;
+}
+
+.origami-world nav .theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.origami-world nav .theme-toggle svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 /* Double rule (not a plain 1px line, unlike inter-row dividers elsewhere)
@@ -538,7 +593,8 @@
   margin-top: 0.25rem;
 }
 
-.origami-world.origami-page #form-error {
+.origami-world.origami-page #form-error,
+.origami-world.origami-page .form-error {
   color: var(--og-accent);
   font-weight: 500;
   margin-bottom: 1rem;
@@ -647,6 +703,15 @@
   color: var(--og-accent);
   font-size: 0.875rem;
   margin-top: 0.25rem;
+}
+
+/* Combined login/register page: two columns desktop (login left,
+   register right), stacked mobile (login first — see max-width: 768px
+   query below, same breakpoint as the hero/feature-row grids). */
+.origami-world.origami-page .auth-forms {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
 }
 
 /* ---- Home page: full expression (Persuade mode) ---- */
@@ -818,7 +883,8 @@
 
 @media (max-width: 768px) {
   .origami-hero,
-  .origami-feature-row {
+  .origami-feature-row,
+  .origami-world.origami-page .auth-forms {
     grid-template-columns: 1fr;
   }
 

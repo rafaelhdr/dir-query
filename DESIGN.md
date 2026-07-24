@@ -199,6 +199,12 @@ Base corner radius is `0` everywhere — Origami has no rounded corners at all. 
 
 ### Beta Mark
 - A fold-cut rectangle, 2px Coral border, Coral text, uppercase Label type — the one badge/status marker sitewide.
+- Interactive: it's a real link (to the Beta info page), not decorative text. Hover/focus fills with the accent, text flips to Ink for contrast — the same "fills with the accent" idiom as the Source Chip, since visually it's already an accent-bordered chip rather than a ghost button.
+
+### Theme Toggle
+- An icon-only `.origami-button-secondary` (ghost button, same fold-cut corner) in the header, showing a vendored Lucide sun/moon SVG.
+- Shows the *destination* theme, not the current one: moon while in light mode ("switch to dark"), sun while in dark mode ("switch to light"). The accessible label follows the same destination framing.
+- Persists the explicit choice in `localStorage`, overriding the OS's `prefers-color-scheme` default; with no stored choice, OS preference governs as before.
 
 ### Facet Panel (home page only)
 - A CSS-drawn folded-paper illustration: three overlapping fold-cut polygons in a clear tonal progression (a neutral back plane, a muted-accent mid plane with a mirrored cut, a bold-accent front plane with the smallest, boldest cut), each with its own gradient so the planes read as distinct surfaces catching light differently rather than one flat tinted rectangle. Used beside the hero headline and inside each zig-zag row's panel. Decorative, not interactive.

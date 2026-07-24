@@ -1,37 +1,86 @@
-    <nav>
-      <a href="/home">Home</a>
-      <a href="/workspaces">Workspaces</a>
-      <span id="nav-auth"></span>
-      <span class="beta-badge">Beta</span>
+    <nav
+      x-data="{
+        theme: document.documentElement.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+        loggedIn: Auth.isLoggedIn(),
+        email: Auth.getEmail(),
+        toggleTheme() {
+          this.theme = this.theme === 'dark' ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', this.theme);
+          localStorage.setItem('theme', this.theme);
+        },
+        logout() {
+          Auth.clearSession();
+          window.location.reload();
+        },
+      }"
+    >
+      <div class="nav-left">
+        <a href="/home">Home</a>
+        <a href="/workspaces">Workspaces</a>
+        <a class="beta-badge" href="/beta">Beta</a>
+      </div>
+      <div class="nav-right">
+        <!--
+          Sun/moon icons vendored from Lucide v1.26.0 (ISC Licensed)
+          https://lucide.dev
+          Vendored from https://unpkg.com/lucide-static@1.26.0/icons/sun.svg
+          and https://unpkg.com/lucide-static@1.26.0/icons/moon.svg on 2026-07-24
+        -->
+        <button
+          type="button"
+          class="origami-button-secondary theme-toggle"
+          @click="toggleTheme()"
+          :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+        >
+          <svg
+            x-show="theme === 'dark'"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2" />
+            <path d="M12 20v2" />
+            <path d="m4.93 4.93 1.41 1.41" />
+            <path d="m17.66 17.66 1.41 1.41" />
+            <path d="M2 12h2" />
+            <path d="M20 12h2" />
+            <path d="m6.34 17.66-1.41 1.41" />
+            <path d="m19.07 4.93-1.41 1.41" />
+          </svg>
+          <svg
+            x-show="theme !== 'dark'"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"
+            />
+          </svg>
+        </button>
+        <template x-if="loggedIn">
+          <span>
+            <span x-text="email"></span>
+            <a href="#" @click.prevent="logout()">Logout</a>
+          </span>
+        </template>
+        <template x-if="!loggedIn">
+          <a href="/login">Login / Register</a>
+        </template>
+      </div>
     </nav>
-    <script>
-      (function () {
-        var el = document.getElementById("nav-auth");
-
-        if (Auth.isLoggedIn()) {
-          var emailSpan = document.createElement("span");
-          emailSpan.textContent = Auth.getEmail();
-          el.appendChild(emailSpan);
-
-          var logoutLink = document.createElement("a");
-          logoutLink.href = "#";
-          logoutLink.textContent = "Logout";
-          logoutLink.addEventListener("click", function (evt) {
-            evt.preventDefault();
-            Auth.clearSession();
-            window.location.reload();
-          });
-          el.appendChild(logoutLink);
-        } else {
-          var loginLink = document.createElement("a");
-          loginLink.href = "/login";
-          loginLink.textContent = "Login";
-          el.appendChild(loginLink);
-
-          var registerLink = document.createElement("a");
-          registerLink.href = "/register";
-          registerLink.textContent = "Register";
-          el.appendChild(registerLink);
-        }
-      })();
-    </script>

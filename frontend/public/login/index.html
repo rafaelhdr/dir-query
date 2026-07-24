@@ -2,7 +2,7 @@
 <!-- Origami Geometric — restrained tier (see DESIGN.md). -->
 <html lang="en">
   <head>
-    <!--#set var="page_title" value="Log In — Dir Query" -->
+    <!--#set var="page_title" value="Log In or Register — Dir Query" -->
     <!--#include virtual="/partials/head.html" -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,33 +14,62 @@
   <body class="origami-world origami-page">
     <!--#include virtual="/partials/nav.html" -->
 
-    <!--#set var="page_heading" value="Log In" -->
+    <!--#set var="page_heading" value="Log in or register" -->
     <!--#include virtual="/partials/heading.html" -->
 
-    <div x-data="apiForm()">
-      <div id="form-error" x-text="error"></div>
+    <div class="auth-forms">
+      <section>
+        <h2>Log in</h2>
+        <div x-data="apiForm()">
+          <div class="form-error" x-text="error"></div>
 
-      <form
-        id="login-form"
-        @submit.prevent="submit('/api/auth/login', $event, (data) => { Auth.setSession(data.token, data.email); window.location = '/workspaces'; })"
-      >
-        <p>
-          <label>
-            Email
-            <input type="email" name="email" required />
-          </label>
-        </p>
-        <p>
-          <label>
-            Password
-            <input type="password" name="password" required />
-          </label>
-        </p>
-        <button type="submit" class="origami-button-primary" :disabled="submitting">Log in</button>
-      </form>
+          <form
+            id="login-form"
+            @submit.prevent="submit('/api/auth/login', $event, (data) => { Auth.setSession(data.token, data.email); window.location = '/workspaces'; })"
+          >
+            <p>
+              <label>
+                Email
+                <input type="email" name="email" required />
+              </label>
+            </p>
+            <p>
+              <label>
+                Password
+                <input type="password" name="password" required />
+              </label>
+            </p>
+            <button type="submit" class="origami-button-primary" :disabled="submitting">Log in</button>
+          </form>
+        </div>
+      </section>
+
+      <section>
+        <h2>Register</h2>
+        <div x-data="apiForm()">
+          <div class="form-error" x-text="error"></div>
+
+          <form
+            id="register-form"
+            @submit.prevent="submit('/api/auth/register', $event, (data) => { Auth.setSession(data.token, data.email); window.location = '/workspaces'; })"
+          >
+            <p>
+              <label>
+                Email
+                <input type="email" name="email" required />
+              </label>
+            </p>
+            <p>
+              <label>
+                Password
+                <input type="password" name="password" required />
+              </label>
+            </p>
+            <button type="submit" class="origami-button-primary" :disabled="submitting">Register</button>
+          </form>
+        </div>
+      </section>
     </div>
-
-    <p><a href="/register">Need an account? Register</a></p>
 
     <!--#include virtual="/partials/footer.html" -->
   </body>
