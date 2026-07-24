@@ -37,5 +37,8 @@ secrets/*
 # Claude Code personal settings
 .claude/settings.local.json
 
+# Impeccable design-review session state (ephemeral, per-run)
+.impeccable/questions/
+
 # Worktrunk worktrees
 .worktrees/

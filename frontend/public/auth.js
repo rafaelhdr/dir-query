@@ -3,21 +3,21 @@
   var EMAIL_KEY = "authEmail";
 
   function getToken() {
-    return sessionStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem(TOKEN_KEY);
   }
 
   function getEmail() {
-    return sessionStorage.getItem(EMAIL_KEY);
+    return localStorage.getItem(EMAIL_KEY);
   }
 
   function setSession(token, email) {
-    sessionStorage.setItem(TOKEN_KEY, token);
-    sessionStorage.setItem(EMAIL_KEY, email);
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(EMAIL_KEY, email);
   }
 
   function clearSession() {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(EMAIL_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(EMAIL_KEY);
   }
 
   function isLoggedIn() {
@@ -36,6 +36,7 @@
   }
 
   window.Auth = {
+    TOKEN_KEY: TOKEN_KEY,
     getToken: getToken,
     getEmail: getEmail,
     setSession: setSession,

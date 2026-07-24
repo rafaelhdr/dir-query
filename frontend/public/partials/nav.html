@@ -12,6 +12,14 @@
           Auth.clearSession();
           window.location.reload();
         },
+        init() {
+          window.addEventListener('storage', (event) => {
+            if (event.key === Auth.TOKEN_KEY && !event.newValue) {
+              this.loggedIn = false;
+              this.email = null;
+            }
+          });
+        },
       }"
     >
       <div class="nav-left">
