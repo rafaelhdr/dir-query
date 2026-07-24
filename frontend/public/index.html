@@ -10,10 +10,10 @@
   line hairlines behind the hero — decorative, never text or fills.
   Poppins carries all text.
   STORY: a visitor lands, understands in one glance that this is a
-  document Q&A tool, and is one click from a real workspace.
-  FIRST VIEWPORT: split-screen hero — headline, intro, CTA on the left; a
-  folded-paper illustration on the right. The only motion on the page is
-  this hero's staggered fade-up entrance.
+  document Q&A tool, and is one click from two real, working examples.
+  FIRST VIEWPORT: split-screen hero — headline, intro, and two example
+  CTAs on the left; a folded-paper illustration on the right. The only
+  motion on the page is this hero's staggered fade-up entrance.
   FORM: Origami Geometric is the site's shared identity (see DESIGN.md),
   expressed here at full intensity — hero, crease-grid texture, zig-zag
   feature rows — versus the restrained tier on the ask page.
@@ -36,11 +36,16 @@
       <div class="origami-hero-text">
         <h1>Dir Query</h1>
         <p>
-          This project helps you ask questions about your own documents. Upload
-          PDFs to a workspace, then ask questions and get answers grounded in
-          what you uploaded.
+          Dir Query uses AI to understand your own documents, so you can ask
+          questions and get answers grounded in what you actually wrote —
+          not just what a model already knows. Each workspace holds one
+          separate collection of documents, for example one per person or
+          company. See it in action:
         </p>
-        <a class="origami-button-primary" href="/workspaces">Browse or create a workspace</a>
+        <div class="page-actions">
+          <a class="origami-button-primary" href="/w/rafaelhdr-cv/ask">rafaelhdr CV</a>
+          <a class="origami-button-primary" href="/w/the-sweet-fellowship/ask">Fiction Company</a>
+        </div>
       </div>
       <div class="origami-hero-visual" aria-hidden="true">
         <span class="origami-facet origami-facet-a"></span>
@@ -51,14 +56,14 @@
 
     <div class="origami-feature-row">
       <div class="origami-feature-text">
-        <h2>What is RAG?</h2>
+        <h2>Can I use it?</h2>
         <p>
-          RAG stands for <strong>Retrieval-Augmented Generation</strong>. It's a
-          way of answering questions by first retrieving the most relevant
-          pieces of your own documents, then giving those pieces to a language
-          model so it can generate an answer grounded in your content, instead
-          of relying only on what the model already knows.
+          Yes. Dir Query is
+          <a href="https://github.com/rafaelhdr/dir-query">open source</a> —
+          you can self-host it on your own documents, adapt it to your own
+          systems, and contribute improvements back.
         </p>
+        <a class="origami-button-secondary" href="/workspaces/new">Test your own workspace</a>
       </div>
       <div class="origami-feature-panel" aria-hidden="true">
         <span class="origami-facet origami-facet-a"></span>
@@ -68,13 +73,14 @@
 
     <div class="origami-feature-row origami-reverse">
       <div class="origami-feature-text">
-        <h2>Workspaces</h2>
+        <h2>Technologies behind</h2>
         <p>
-          A <strong>workspace</strong> keeps a group of documents separate from
-          any other — for example, one per person or company. Uploading and
-          asking questions both happen inside a workspace, so different
-          workspaces never mix their documents.
-          <a href="/workspaces">Browse or create a workspace</a> to get started.
+          Dir Query answers questions with RAG (Retrieval-Augmented
+          Generation), indexed and retrieved with llama-index. The backend
+          is a FastAPI service; the frontend is plain Alpine.js. The project
+          itself is developed using SDD (Spec-Driven Development) —
+          every change starts as a written proposal and spec before any
+          code is written.
         </p>
       </div>
       <div class="origami-feature-panel" aria-hidden="true">

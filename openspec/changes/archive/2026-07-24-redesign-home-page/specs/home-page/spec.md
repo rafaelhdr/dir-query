@@ -1,12 +1,4 @@
-## Purpose
-
-The home page (served at `/`) is the entry point of the application. It
-explains what the project is, links to two example workspaces, explains
-that the project is open source and self-hostable, names the
-technologies it's built on, discloses beta status, and links to the
-other pages.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Home page explains the project and RAG
 The system SHALL serve the home page at `/` only, explaining what Dir
@@ -35,27 +27,3 @@ your own workspace; and naming the technologies the project is built on.
 - **WHEN** a user clicks the home page's link to the project's source
   code
 - **THEN** the browser navigates to the project's GitHub repository
-
-### Requirement: Home page discloses beta status
-The system SHALL clearly indicate, via a badge in the site header shown on
-every page, that the application is a beta version, and that uploaded
-documents are not yet processed or searchable. The badge SHALL be a link
-to the `/beta` page, where more detail is available.
-
-#### Scenario: Beta notice is visible
-- **WHEN** a user views any page of the application
-- **THEN** the site header displays a visible badge stating the
-  application is in beta, and uploads are not yet processed or searchable
-
-#### Scenario: Navigating to Beta info via the badge
-- **WHEN** a user clicks the Beta badge in the site header
-- **THEN** the browser navigates to `/beta`
-
-### Requirement: Home page links to the other pages
-The system SHALL provide a navigation link from the home page to the
-workspaces page (`/workspaces`).
-
-#### Scenario: Navigating from home to workspaces
-- **WHEN** a user clicks the "Workspaces" navigation link on the home page
-- **THEN** the browser navigates to `/workspaces`
-</content>
